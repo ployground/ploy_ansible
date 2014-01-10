@@ -113,6 +113,7 @@ def connect_patch_factory(aws):
             password,
             transport,
             private_key_file)
+        result.delegate = host
         for key in ssh_info:
             if key[0].isupper():
                 result.common_args.append('-o')
