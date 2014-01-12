@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import sys
@@ -393,36 +392,6 @@ def get_commands(aws):
         ('playbook', AnsiblePlaybookCmd(aws))]
 
 
-class PlaybooksMassager(object):
-    sectiongroupname = None
-    key = 'playbooks'
-
-    def __call__(self, main_config, sectiongroupname, sectionname):
-        value = main_config[sectiongroupname][sectionname][self.key]
-        result = {}
-        for path in value.split():
-            if not path:
-                continue
-            parts = path.split('=', 1)
-            if len(parts) > 1:
-                name = parts[0]
-                path = parts[1]
-            else:
-                path = parts[0]
-                name = os.path.splitext(os.path.basename(path))[0]
-            path = os.path.expanduser(path)
-            if not os.path.isabs(path):
-                path = os.path.join(main_config.path, path)
-            result[name] = path
-        return result
-
-
-
-def get_massagers():
-    return [PlaybooksMassager()]
-
-
 plugin = dict(
     augment_instance=augment_instance,
-    get_commands=get_commands,
-    get_massagers=get_massagers)
+    get_commands=get_commands)
