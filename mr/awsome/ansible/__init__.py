@@ -311,35 +311,43 @@ class AnsiblePlaybookCmd(object):
 
 def connect_patch_factory(aws):
     from ansible import errors
+    from ansible import utils
     def connect_patch(self, host, port, user, password, transport, private_key_file):
-        assert transport == 'ssh'
+        if transport not in ('paramiko', 'ssh'):
+            raise errors.AnsibleError("Invalid transport '%s' for mr.awsome instance." % transport)
         instance = aws.instances[host]
         if hasattr(instance, '_status'):
             if instance._status() != 'running':
                 raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)
         try:
             ssh_info = instance.init_ssh_key(user=user)
-        except instance.paramiko.SSHException, e:
-            log.error("Couldn't validate fingerprint for ssh connection.")
-            log.error(unicode(e))
-            log.error("Is the server finished starting up?")
-            sys.exit(1)
+        except instance.paramiko.SSHException:
+            raise errors.AnsibleError("Couldn't validate fingerprint for '%s'." % instance.id)
         client = ssh_info['client']
-        client.get_transport().sock.close()
-        client.close()
-        result = self._awsome_orig_connect(
+        if transport == 'ssh':
+            client.get_transport().sock.close()
+            client.close()
+        conn = utils.plugins.connection_loader.get(
+            transport,
+            self.runner,
             ssh_info['host'],
             int(ssh_info['port']),
-            ssh_info['user'],
-            password,
-            transport,
-            private_key_file)
-        result.delegate = host
-        for key in ssh_info:
-            if key[0].isupper():
-                result.common_args.append('-o')
-                result.common_args.append('%s=%s' % (key, ssh_info[key]))
-        return result
+            user=ssh_info['user'],
+            password=password,
+            private_key_file=private_key_file)
+        if conn is None:
+            raise errors.AnsibleError("unsupported connection type: %s" % transport)
+        if transport == 'paramiko':
+            conn.ssh = client
+            self.active = conn
+        else:
+            self.active = conn.connect()
+            for key in ssh_info:
+                if key[0].isupper():
+                    self.active.common_args.append('-o')
+                    self.active.common_args.append('%s=%s' % (key, ssh_info[key]))
+        self.active.delegate = host
+        return self.active
     return connect_patch
 
 

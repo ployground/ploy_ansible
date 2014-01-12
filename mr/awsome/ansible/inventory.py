@@ -36,6 +36,9 @@ class Inventory(BaseInventory):
         for k, v in instance.config.items():
             if k == 'user':
                 result['ansible_ssh_user'] = v
+            elif k == 'password' and instance.config['password-fallback']:
+                result['ansible_ssh_pass'] = v
+                result['ansible_connection'] = 'paramiko'
             elif k.startswith('ansible_'):
                 result[k] = v
             elif k.startswith('ansible-'):
