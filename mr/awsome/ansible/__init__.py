@@ -350,17 +350,17 @@ def patch_connect(aws):
         Connection.connect = connect_patch_factory(aws)
 
 
-def apply_playbook(self, aws, playbook, *args, **kwargs):
+def apply_playbook(self, playbook, *args, **kwargs):
     import ansible.playbook
     import ansible.callbacks
     import ansible.errors
     import ansible.utils
     from mr.awsome.ansible.inventory import Inventory
-    patch_connect(aws)
+    patch_connect(self.master.aws)
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
     runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
-    inventory = Inventory(aws)
+    inventory = Inventory(self.master.aws)
     try:
         pb = ansible.playbook.PlayBook(
             playbook=playbook,
