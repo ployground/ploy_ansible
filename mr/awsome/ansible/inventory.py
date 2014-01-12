@@ -13,14 +13,20 @@ class Inventory(BaseInventory):
         groups['all'] = self.get_group('all')
         for instance in self.aws.instances.values():
             h = Host(instance.id)
-            for group in ('all', instance.sectiongroupname):
+            add_to = ['all', '%ss' % instance.sectiongroupname]
+            if hasattr(instance, 'master'):
+                if instance == instance.master.instance:
+                    add_to.append('masters')
+                else:
+                    add_to.append('%s-instances' % instance.master.id)
+            for group in add_to:
                 g = groups.get(group)
                 if g is None:
-                    g = self.get_group(instance.sectiongroupname)
+                    g = self.get_group(group)
                     if g is None:
-                        g = Group(instance.sectiongroupname)
+                        g = Group(group)
                         self.add_group(g)
-                    groups[instance.sectiongroupname] = g
+                    groups[group] = g
                 g.add_host(h)
 
     def _get_variables(self, hostname):
