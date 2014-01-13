@@ -1,6 +1,8 @@
+from ansible import errors
 from ansible.inventory import Group
 from ansible.inventory import Host
 from ansible.inventory import Inventory as BaseInventory
+from ansible.inventory.vars_plugins.group_vars import VarsModule
 
 
 class Inventory(BaseInventory):
@@ -31,8 +33,13 @@ class Inventory(BaseInventory):
                         self.add_group(g)
                     groups[group] = g
                 g.add_host(h)
+        self._vars_plugins = []
+        self._vars_plugins.append(VarsModule(self))
 
     def _get_variables(self, hostname):
+        host = self.get_host(hostname)
+        if host is None:
+            raise errors.AnsibleError("host not found: %s" % hostname)
         result = dict(
             ansible_connection='paramiko')
         instance = self.aws.instances[hostname]
@@ -45,5 +52,13 @@ class Inventory(BaseInventory):
             elif k.startswith('ansible_'):
                 result[k] = v
             elif k.startswith('ansible-'):
-                result[k[len('ansible-'):]] = v
-        return result
+                result[k[len('ansible-'):].replace('-', '_')] = v
+            else:
+                result['awsome_%s' % k.replace('-', '_')] = v
+        vars = {}
+        vars_results = [plugin.run(host) for plugin in self._vars_plugins]
+        for updated in vars_results:
+            if updated is not None:
+                vars.update(updated)
+        vars.update(result)
+        return vars
