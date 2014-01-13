@@ -9,6 +9,9 @@ class Inventory(BaseInventory):
             self,
             host_list=[])
         self.aws = aws
+        ansible_config = aws.config.get('global', {}).get('ansible', {})
+        if 'playbooks-directory' in ansible_config:
+            self.set_playbook_basedir(ansible_config['playbooks-directory'])
         groups = {}
         groups['all'] = self.get_group('all')
         for instance in self.aws.instances.values():
