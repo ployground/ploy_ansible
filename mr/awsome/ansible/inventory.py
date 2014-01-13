@@ -31,7 +31,7 @@ class Inventory(BaseInventory):
 
     def _get_variables(self, hostname):
         result = dict(
-            ansible_connection='ssh')
+            ansible_connection='paramiko')
         instance = self.aws.instances[hostname]
         for k, v in instance.config.items():
             if k == 'user':
