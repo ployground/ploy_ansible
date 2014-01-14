@@ -20,10 +20,11 @@ class Inventory(BaseInventory):
             h = Host(instance.id)
             add_to = ['all', '%ss' % instance.sectiongroupname]
             if hasattr(instance, 'master'):
-                if instance == instance.master.instance:
+                master = instance.master
+                if instance == getattr(master, 'instance', None):
                     add_to.append('masters')
                 else:
-                    add_to.append('%s-instances' % instance.master.id)
+                    add_to.append('%s-instances' % master.id)
             for group in add_to:
                 g = groups.get(group)
                 if g is None:
