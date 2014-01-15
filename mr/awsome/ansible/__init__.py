@@ -312,19 +312,29 @@ class AnsiblePlaybookCmd(object):
 def connect_patch_factory(aws):
     from ansible import errors
     from ansible import utils
+    _sshinfo_cache = {}
     def connect_patch(self, host, port, user, password, transport, private_key_file):
         if transport not in ('paramiko', 'ssh'):
             raise errors.AnsibleError("Invalid transport '%s' for mr.awsome instance." % transport)
-        instance = aws.instances[host]
-        if hasattr(instance, '_status'):
-            if instance._status() != 'running':
-                raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)
-        try:
-            ssh_info = instance.init_ssh_key(user=user)
-        except instance.paramiko.SSHException:
-            raise errors.AnsibleError("Couldn't validate fingerprint for '%s'." % instance.id)
-        client = ssh_info['client']
-        if transport == 'ssh':
+        cache_key = (host, port, user, password, transport, private_key_file)
+        if cache_key not in _sshinfo_cache:
+            instance = aws.instances[host]
+            if hasattr(instance, '_status'):
+                if instance._status() != 'running':
+                    raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)
+            try:
+                ssh_info = instance.init_ssh_key(user=user)
+            except instance.paramiko.SSHException:
+                raise errors.AnsibleError("Couldn't validate fingerprint for '%s'." % instance.id)
+            if transport == 'ssh':
+                _sshinfo_cache[cache_key] = ssh_info
+        else:
+            ssh_info = _sshinfo_cache[cache_key]
+        client = ssh_info.get('client')
+        if client is not None and client.get_transport() is None:
+            client = None
+            del ssh_info['client']
+        if transport == 'ssh' and client is not None:
             client.get_transport().sock.close()
             client.close()
         conn = utils.plugins.connection_loader.get(

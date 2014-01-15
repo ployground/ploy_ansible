@@ -42,7 +42,7 @@ class Inventory(BaseInventory):
         if host is None:
             raise errors.AnsibleError("host not found: %s" % hostname)
         result = dict(
-            ansible_connection='paramiko')
+            ansible_connection='ssh')
         instance = self.aws.instances[hostname]
         for k, v in instance.config.items():
             if k == 'user':
