@@ -525,72 +525,20 @@ class AnsibleConfigureCmd(object):
 
 
 def connect_patch_factory(aws):
-    from ansible import errors
-    from ansible import utils
-    _sshinfo_cache = {}
-
     def connect_patch(self, host, port, user, password, transport, private_key_file):
-        if transport == 'local':
-            return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
-        if transport not in ('paramiko', 'ssh'):
-            raise errors.AnsibleError("Invalid transport '%s' for mr.awsome instance." % transport)
-        cache_key = (host, port, user, password, transport, private_key_file)
-        if cache_key not in _sshinfo_cache:
-            instance = aws.instances[host]
-            if hasattr(instance, '_status'):
-                if instance._status() != 'running':
-                    raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)
-            try:
-                ssh_info = instance.init_ssh_key(user=user)
-            except instance.paramiko.SSHException:
-                raise errors.AnsibleError("Couldn't validate fingerprint for '%s'." % instance.id)
-            if transport == 'ssh':
-                _sshinfo_cache[cache_key] = ssh_info
-        else:
-            ssh_info = _sshinfo_cache[cache_key]
-        client = ssh_info.get('client')
-        if client is not None and client.get_transport() is None:
-            client = None
-            del ssh_info['client']
-        if transport == 'ssh' and client is not None:
-            client.get_transport().sock.close()
-            client.close()
-        conn = utils.plugins.connection_loader.get(
-            transport,
-            self.runner,
-            ssh_info['host'],
-            int(ssh_info['port']),
-            user=ssh_info['user'],
-            password=password,
-            private_key_file=private_key_file)
-        if conn is None:
-            raise errors.AnsibleError("unsupported connection type: %s" % transport)
-        if transport == 'paramiko':
-            conn.ssh = client
-            self.active = conn
-        else:
-            self.active = conn.connect()
-            for key in ssh_info:
-                if key[0].isupper():
-                    self.active.common_args.append('-o')
-                    self.active.common_args.append('%s=%s' % (key, ssh_info[key]))
-            indices = []
-            for i, option in enumerate(self.active.common_args):
-                if option == '-o':
-                    index = i
-                    continue
-                if option.startswith(('ControlMaster=', 'ControlPersist=', 'ControlPath=')):
-                    indices.append(index)
-                    indices.append(i)
-            for i in sorted(indices, reverse=True):
-                del self.active.common_args[i]
-        self.active.delegate = host
-        return self.active
-
+        self.runner._awsome_aws = aws
+        return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
     return connect_patch
 
 
 def patch_connect(aws):
+    import pkg_resources
+    from ansible.utils import plugins
+    path = os.path.dirname(
+        pkg_resources.resource_filename(
+            'mr.awsome_ansible',
+            'execnet_connection.py'))
+    plugins.connection_loader.add_directory(path)
     from ansible.runner.connection import Connection
     if not hasattr(Connection, '_awsome_orig_connect'):
         Connection._awsome_orig_connect = Connection.connect

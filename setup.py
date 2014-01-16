@@ -24,6 +24,7 @@ setup(
     install_requires=[
         'setuptools',
         'mr.awsome >= 1.0rc5',
+        'execnet'
     ],
     entry_points="""
         [mr.awsome.plugins]

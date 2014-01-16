@@ -44,12 +44,11 @@ class Inventory(BaseInventory):
         host = self.get_host(hostname)
         if host is None:
             raise errors.AnsibleError("host not found: %s" % hostname)
-        result = dict()
+        result = dict(ansible_connection='execnet_connection')
         instance = self.aws.instances[hostname]
         for k, v in instance.config.items():
             if k == 'password' and instance.config['password-fallback']:
                 result['ansible_ssh_pass'] = v
-                result['ansible_connection'] = 'paramiko'
             elif k.startswith('ansible_'):
                 result[k] = v
             elif k.startswith('ansible-'):

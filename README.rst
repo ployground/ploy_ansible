@@ -4,6 +4,10 @@ Changelog
 1.0b3 - unreleased
 ------------------
 
+* Use execnet for connections. There is only one ssh connection per host and
+  it's reused for all commands.
+  [fschulze]
+
 * Make sure the playbook directory is always absolute.
   [fschulze]
 
