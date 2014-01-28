@@ -45,9 +45,7 @@ class Inventory(BaseInventory):
             ansible_connection='ssh')
         instance = self.aws.instances[hostname]
         for k, v in instance.config.items():
-            if k == 'user':
-                result['ansible_ssh_user'] = v
-            elif k == 'password' and instance.config['password-fallback']:
+            if k == 'password' and instance.config['password-fallback']:
                 result['ansible_ssh_pass'] = v
                 result['ansible_connection'] = 'paramiko'
             elif k.startswith('ansible_'):
