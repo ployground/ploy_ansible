@@ -314,6 +314,8 @@ def connect_patch_factory(aws):
     from ansible import utils
     _sshinfo_cache = {}
     def connect_patch(self, host, port, user, password, transport, private_key_file):
+        if transport == 'local':
+            return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
         if transport not in ('paramiko', 'ssh'):
             raise errors.AnsibleError("Invalid transport '%s' for mr.awsome instance." % transport)
         cache_key = (host, port, user, password, transport, private_key_file)
