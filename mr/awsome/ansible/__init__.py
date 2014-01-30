@@ -401,9 +401,17 @@ def apply_playbook(self, playbook, *args, **kwargs):
     pb.run()
 
 
+def get_ansible_variables(self):
+    from mr.awsome.ansible.inventory import Inventory
+    inventory = Inventory(self.master.aws)
+    return inventory.get_variables(self.id)
+
+
 def augment_instance(instance):
     if not hasattr(instance, 'apply_playbook'):
         instance.apply_playbook = apply_playbook.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_ansible_variables'):
+        instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
 
 
 def get_commands(aws):
