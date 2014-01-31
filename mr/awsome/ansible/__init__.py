@@ -370,7 +370,7 @@ def patch_connect(aws):
         Connection.connect = connect_patch_factory(aws)
 
 
-def apply_playbook(self, playbook, *args, **kwargs):
+def get_playbook(self, playbook, *args, **kwargs):
     import ansible.playbook
     import ansible.callbacks
     import ansible.errors
@@ -398,7 +398,11 @@ def apply_playbook(self, playbook, *args, **kwargs):
         for task in play.tasks():
             if getattr(task, 'name', None) is not None:
                 print '    task:', task.name
-    pb.run()
+    return pb
+
+
+def apply_playbook(self, playbook, *args, **kwargs):
+    self.get_playbook(playbook, *args, **kwargs).run()
 
 
 def get_ansible_variables(self):
@@ -410,6 +414,8 @@ def get_ansible_variables(self):
 def augment_instance(instance):
     if not hasattr(instance, 'apply_playbook'):
         instance.apply_playbook = apply_playbook.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_playbook'):
+        instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
 
