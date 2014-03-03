@@ -37,7 +37,7 @@ class Inventory(BaseInventory):
         self._vars_plugins = []
         self._vars_plugins.append(VarsModule(self))
 
-    def _get_variables(self, hostname):
+    def _get_variables(self, hostname, **kwargs):
         host = self.get_host(hostname)
         if host is None:
             raise errors.AnsibleError("host not found: %s" % hostname)
