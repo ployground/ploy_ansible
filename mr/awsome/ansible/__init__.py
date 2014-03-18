@@ -29,9 +29,11 @@ class AnsibleCmd(object):
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
-        parser.add_option('-a', '--args', dest='module_args',
+        parser.add_option(
+            '-a', '--args', dest='module_args',
             help="module arguments", default=C.DEFAULT_MODULE_ARGS)
-        parser.add_option('-m', '--module-name', dest='module_name',
+        parser.add_option(
+            '-m', '--module-name', dest='module_name',
             help="module name to execute (default=%s)" % C.DEFAULT_MODULE_NAME,
             default=C.DEFAULT_MODULE_NAME)
         options, args = parser.parse_args(argv)
@@ -74,7 +76,7 @@ class AnsibleCmd(object):
             forks=options.forks,
             pattern=pattern,
             callbacks=cbs, sudo=options.sudo,
-            sudo_pass=sudopass,sudo_user=options.sudo_user,
+            sudo_pass=sudopass, sudo_user=options.sudo_user,
             transport='ssh', subset=options.subset,
             check=options.check,
             diff=options.check)
@@ -111,19 +113,26 @@ class AnsiblePlaybookCmd(object):
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
-        parser.add_option('-e', '--extra-vars', dest="extra_vars", action="append",
+        parser.add_option(
+            '-e', '--extra-vars', dest="extra_vars", action="append",
             help="set additional variables as key=value or YAML/JSON", default=[])
-        parser.add_option('-t', '--tags', dest='tags', default='all',
+        parser.add_option(
+            '-t', '--tags', dest='tags', default='all',
             help="only run plays and tasks tagged with these values")
-        parser.add_option('--skip-tags', dest='skip_tags',
+        parser.add_option(
+            '--skip-tags', dest='skip_tags',
             help="only run plays and tasks whose tags do not match these values")
-        parser.add_option('--syntax-check', dest='syntax', action='store_true',
+        parser.add_option(
+            '--syntax-check', dest='syntax', action='store_true',
             help="perform a syntax check on the playbook, but do not execute it")
-        parser.add_option('--list-tasks', dest='listtasks', action='store_true',
+        parser.add_option(
+            '--list-tasks', dest='listtasks', action='store_true',
             help="list all tasks that would be executed")
-        parser.add_option('--step', dest='step', action='store_true',
+        parser.add_option(
+            '--step', dest='step', action='store_true',
             help="one-step-at-a-time: confirm each task before running")
-        parser.add_option('--start-at-task', dest='start_at',
+        parser.add_option(
+            '--start-at-task', dest='start_at',
             help="start the playbook at the task matching this name")
         options, args = parser.parse_args(argv)
         cbs = callbacks.CliRunnerCallbacks()
@@ -131,12 +140,14 @@ class AnsiblePlaybookCmd(object):
         if len(args) == 0:
             parser.print_help(file=sys.stderr)
             sys.exit(1)
+
         def colorize(lead, num, color):
             """ Print 'lead' = 'num' in 'color' """
             if num != 0 and ANSIBLE_COLOR and color is not None:
                 return "%s%s%-15s" % (stringc(lead, color), stringc("=", color), stringc(str(num), color))
             else:
                 return "%s=%-4s" % (lead, str(num))
+
         def hostcolor(host, stats, color=True):
             if ANSIBLE_COLOR and color:
                 if stats['failures'] != 0 or stats['unreachable'] != 0:
@@ -146,6 +157,7 @@ class AnsiblePlaybookCmd(object):
                 else:
                     return "%-37s" % stringc(host, 'green')
             return "%-26s" % host
+
         try:
             patch_connect(self.aws)
             inventory = Inventory(self.aws)
@@ -242,8 +254,9 @@ class AnsiblePlaybookCmd(object):
                             print '  play #%d (%s):' % (playnum, label)
 
                             for task in play.tasks():
-                                if (set(task.tags).intersection(pb.only_tags) and not
-                                    set(task.tags).intersection(pb.skip_tags)):
+                                _only_tags = set(task.tags).intersection(pb.only_tags)
+                                _skip_tags = set(task.tags).intersection(pb.skip_tags)
+                                if (_only_tags and not _skip_tags):
                                     if getattr(task, 'name', None) is not None:
                                         # meta tasks have no names
                                         print '    %s' % task.name
@@ -298,7 +311,6 @@ class AnsiblePlaybookCmd(object):
                         log_only=True
                     )
 
-
                 print ""
                 if len(failed_hosts) > 0:
                     sys.exit(2)
@@ -313,6 +325,7 @@ def connect_patch_factory(aws):
     from ansible import errors
     from ansible import utils
     _sshinfo_cache = {}
+
     def connect_patch(self, host, port, user, password, transport, private_key_file):
         if transport == 'local':
             return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
@@ -360,6 +373,7 @@ def connect_patch_factory(aws):
                     self.active.common_args.append('%s=%s' % (key, ssh_info[key]))
         self.active.delegate = host
         return self.active
+
     return connect_patch
 
 
