@@ -19,6 +19,6 @@ setup(
         'ansible'
     ],
     entry_points="""
-      [mr.awsome.plugins]
-      ansible = mr.awsome.ansible:plugin
+        [mr.awsome.plugins]
+        ansible = mr.awsome.ansible:plugin
     """)
