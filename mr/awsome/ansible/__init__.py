@@ -1,7 +1,8 @@
 import logging
+import pkg_resources
 import os
 import sys
-
+from os.path import pathsep
 
 log = logging.getLogger('mr.awsome.ansible')
 
@@ -102,6 +103,17 @@ class AnsiblePlaybookCmd(object):
         from mr.awsome.ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
+
+        # collect and inject ansible paths (roles and library) from entrypoints
+        extra_roles = []
+        extra_library = []
+        for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
+            pathinfo = entrypoint.load()
+            extra_roles.extend(pathinfo.get('roles', []))
+            extra_library.extend(pathinfo.get('library', []))
+        C.DEFAULT_ROLES_PATH = pathsep.join([pathsep.join(extra_roles), C.DEFAULT_ROLES_PATH])
+        C.DEFAULT_MODULE_PATH = pathsep.join([pathsep.join(extra_library), C.DEFAULT_MODULE_PATH])
+
         parser = utils.base_parser(
             constants=C,
             connect_opts=True,
@@ -390,6 +402,7 @@ def get_playbook(self, playbook, *args, **kwargs):
     import ansible.errors
     import ansible.utils
     from mr.awsome.ansible.inventory import Inventory
+
     patch_connect(self.master.aws)
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
