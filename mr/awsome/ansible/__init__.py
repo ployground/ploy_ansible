@@ -6,6 +6,18 @@ from os.path import pathsep
 
 log = logging.getLogger('mr.awsome.ansible')
 
+def inject_ansible_paths():
+    # collect and inject ansible paths (roles and library) from entrypoints
+    import ansible.constants as C
+    extra_roles = []
+    extra_library = []
+    for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
+        pathinfo = entrypoint.load()
+        extra_roles.extend(pathinfo.get('roles', []))
+        extra_library.extend(pathinfo.get('library', []))
+    C.DEFAULT_ROLES_PATH = pathsep.join([pathsep.join(extra_roles), C.DEFAULT_ROLES_PATH])
+    C.DEFAULT_MODULE_PATH = pathsep.join([pathsep.join(extra_library), C.DEFAULT_MODULE_PATH])
+
 
 class AnsibleCmd(object):
     """Run Ansible"""
@@ -104,15 +116,7 @@ class AnsiblePlaybookCmd(object):
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
 
-        # collect and inject ansible paths (roles and library) from entrypoints
-        extra_roles = []
-        extra_library = []
-        for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
-            pathinfo = entrypoint.load()
-            extra_roles.extend(pathinfo.get('roles', []))
-            extra_library.extend(pathinfo.get('library', []))
-        C.DEFAULT_ROLES_PATH = pathsep.join([pathsep.join(extra_roles), C.DEFAULT_ROLES_PATH])
-        C.DEFAULT_MODULE_PATH = pathsep.join([pathsep.join(extra_library), C.DEFAULT_MODULE_PATH])
+        inject_ansible_paths()
 
         parser = utils.base_parser(
             constants=C,
@@ -429,6 +433,7 @@ def get_playbook(self, playbook, *args, **kwargs):
 
 
 def apply_playbook(self, playbook, *args, **kwargs):
+    inject_ansible_paths()
     self.get_playbook(playbook, *args, **kwargs).run()
 
 
