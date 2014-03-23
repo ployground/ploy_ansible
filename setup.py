@@ -15,12 +15,12 @@ setup(
     namespace_packages=['mr'],
     install_requires=[
         'setuptools',
-        'mr.awsome',
+        'mr.awsome >= 1.0dev',
         'ansible'
     ],
     setup_requires=[
         'setuptools-git'],
     entry_points="""
         [mr.awsome.plugins]
-        ansible = mr.awsome.ansible:plugin
+        ansible = mr.awsome_ansible:plugin
     """)

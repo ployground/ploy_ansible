@@ -29,7 +29,7 @@ class AnsibleCmd(object):
         import ansible.constants as C
         from ansible.runner import Runner
         from ansible import callbacks
-        from mr.awsome.ansible.inventory import Inventory
+        from mr.awsome_ansible.inventory import Inventory
         from ansible import utils
         parser = utils.base_parser(
             constants=C,
@@ -112,7 +112,7 @@ class AnsiblePlaybookCmd(object):
         import ansible.constants as C
         from ansible import errors
         from ansible import callbacks
-        from mr.awsome.ansible.inventory import Inventory
+        from mr.awsome_ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
 
@@ -405,7 +405,7 @@ def get_playbook(self, playbook, *args, **kwargs):
     import ansible.callbacks
     import ansible.errors
     import ansible.utils
-    from mr.awsome.ansible.inventory import Inventory
+    from mr.awsome_ansible.inventory import Inventory
 
     patch_connect(self.master.aws)
     stats = ansible.callbacks.AggregateStats()
@@ -438,7 +438,7 @@ def apply_playbook(self, playbook, *args, **kwargs):
 
 
 def get_ansible_variables(self):
-    from mr.awsome.ansible.inventory import Inventory
+    from mr.awsome_ansible.inventory import Inventory
     inventory = Inventory(self.master.aws)
     return inventory.get_variables(self.id)
 
