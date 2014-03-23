@@ -4,7 +4,9 @@ import os
 import sys
 from os.path import pathsep
 
+
 log = logging.getLogger('mr.awsome.ansible')
+
 
 def inject_ansible_paths():
     # collect and inject ansible paths (roles and library) from entrypoints
