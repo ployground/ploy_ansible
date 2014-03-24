@@ -345,6 +345,7 @@ def connect_patch_factory(aws):
     _sshinfo_cache = {}
 
     def connect_patch(self, host, port, user, password, transport, private_key_file):
+        print "connect_patch", host, port, user, password, transport, private_key_file
         if transport == 'local':
             return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
         if transport not in ('paramiko', 'ssh'):
