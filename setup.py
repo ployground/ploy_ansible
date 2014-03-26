@@ -26,8 +26,6 @@ setup(
         'mr.awsome >= 1.0dev',
         'ansible'
     ],
-    setup_requires=[
-        'setuptools-git'],
     entry_points="""
         [mr.awsome.plugins]
         ansible = mr.awsome_ansible:plugin
