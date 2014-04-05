@@ -110,6 +110,7 @@ class AnsiblePlaybookCmd(object):
         self.aws = aws
 
     def __call__(self, argv, help):
+        inject_ansible_paths()
         import ansible.playbook
         import ansible.constants as C
         from ansible import errors
@@ -117,8 +118,6 @@ class AnsiblePlaybookCmd(object):
         from mr.awsome_ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
-
-        inject_ansible_paths()
 
         parser = utils.base_parser(
             constants=C,
@@ -403,6 +402,7 @@ def patch_connect(aws):
 
 
 def get_playbook(self, playbook, *args, **kwargs):
+    inject_ansible_paths()
     import ansible.playbook
     import ansible.callbacks
     import ansible.errors
@@ -435,7 +435,6 @@ def get_playbook(self, playbook, *args, **kwargs):
 
 
 def apply_playbook(self, playbook, *args, **kwargs):
-    inject_ansible_paths()
     self.get_playbook(playbook, *args, **kwargs).run()
 
 
