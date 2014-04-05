@@ -54,6 +54,10 @@ class Inventory(BaseInventory):
             else:
                 result['awsome_%s' % k.replace('-', '_')] = v
         vars = {}
+        for plugin in self.aws.plugins.values():
+            if 'get_ansible_vars' not in plugin:
+                continue
+            vars.update(plugin['get_ansible_vars'](instance))
         vars_results = [plugin.run(host) for plugin in self._vars_plugins]
         for updated in vars_results:
             if updated is not None:
