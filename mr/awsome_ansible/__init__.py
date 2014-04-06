@@ -1,3 +1,4 @@
+import argparse
 import logging
 import pkg_resources
 import os
@@ -339,6 +340,57 @@ class AnsiblePlaybookCmd(object):
             sys.exit(1)
 
 
+class AnsibleConfigureCmd(object):
+
+    def __init__(self, aws):
+        self.aws = aws
+        self.ansible_config = self.aws.config.get('global', {}).get('ansible', {})
+        self.playbooks_directory = self.ansible_config.get(
+            'playbooks-directory',
+            self.aws.config.path)
+
+    def get_completion(self):
+        instances = []
+        for instance in self.aws.instances:
+            if os.path.exists(os.path.join(self.playbooks_directory, '%s.yml' % instance)):
+                instances.append(instance)
+        return instances
+
+    def __call__(self, argv, help):
+        """Configure an instance (ansible playbook run) after it has been started."""
+        parser = argparse.ArgumentParser(
+            prog="ploy configure",
+            description=help,
+            add_help=False,
+        )
+        parser.add_argument(
+            '-t', '--tags',
+            dest='only_tags',
+            default='all',
+            help="only run plays and tasks tagged with these values")
+        parser.add_argument(
+            '--skip-tags',
+            dest='skip_tags',
+            help="only run plays and tasks whose tags do not match these values")
+        parser.add_argument(
+            "instance",
+            nargs=1,
+            metavar="instance",
+            help="Name of the instance from the config.",
+            choices=self.get_completion())
+        args = parser.parse_args(argv)
+        instance = self.aws.instances[args.instance[0]]
+        playbook_path = os.path.join(self.playbooks_directory, '%s.yml' % args.instance[0])
+        only_tags = args.only_tags.split(",")
+        skip_tags = args.skip_tags
+        if skip_tags is not None:
+            skip_tags = skip_tags.split(",")
+        instance.apply_playbook(
+            playbook_path,
+            only_tags=only_tags,
+            skip_tags=skip_tags)
+
+
 def connect_patch_factory(aws):
     from ansible import errors
     from ansible import utils
@@ -417,11 +469,13 @@ def get_playbook(self, playbook, *args, **kwargs):
     inventory = Inventory(self.master.aws)
     try:
         pb = ansible.playbook.PlayBook(
+            *args,
             playbook=playbook,
             callbacks=callbacks,
             inventory=inventory,
             runner_callbacks=runner_callbacks,
-            stats=stats)
+            stats=stats,
+            **kwargs)
     except ansible.errors.AnsibleError as e:
         log.error(e)
         sys.exit(1)
@@ -434,11 +488,6 @@ def get_playbook(self, playbook, *args, **kwargs):
             if not yesno("Do you really want to apply '%s' to the host '%s' anyway?"):
                 sys.exit(1)
         play_ds['hosts'] = [self.id]
-        play = ansible.playbook.Play(pb, play_ds, play_basedir)
-        print 'play:', play.name
-        for task in play.tasks():
-            if getattr(task, 'name', None) is not None:
-                print '    task:', task.name
     return pb
 
 
@@ -464,7 +513,8 @@ def augment_instance(instance):
 def get_commands(aws):
     return [
         ('ansible', AnsibleCmd(aws)),
-        ('playbook', AnsiblePlaybookCmd(aws))]
+        ('playbook', AnsiblePlaybookCmd(aws)),
+        ('configure', AnsibleConfigureCmd(aws))]
 
 
 def get_massagers():

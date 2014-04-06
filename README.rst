@@ -4,6 +4,10 @@ Changelog
 1.0b2 - Unreleased
 ------------------
 
+* Add ``configure`` command which is a stripped down variant of the
+  ``playbook`` command with assumptions about the location of the yml file.
+  [fschulze]
+
 * Warn if a playbook is requested for a host that is not configured in the
   playbook hosts list.
   [fschulze]
