@@ -4,6 +4,10 @@ Changelog
 1.0b2 - Unreleased
 ------------------
 
+* Warn if a playbook is requested for a host that is not configured in the
+  playbook hosts list.
+  [fschulze]
+
 * Allow mr.awsome plugins to add ansible variables.
   [fschulze]
 
