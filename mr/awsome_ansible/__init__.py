@@ -467,6 +467,7 @@ def get_playbook(self, playbook, *args, **kwargs):
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
     runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
     inventory = Inventory(self.master.aws)
+    skip_host_check = kwargs.pop('skip_host_check', False)
     try:
         pb = ansible.playbook.PlayBook(
             *args,
@@ -480,13 +481,14 @@ def get_playbook(self, playbook, *args, **kwargs):
         log.error(e)
         sys.exit(1)
     for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
-        hosts = play_ds.get('hosts')
-        if isinstance(hosts, basestring):
-            hosts = hosts.split(':')
-        if self.id not in hosts:
-            log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.id, ','.join(hosts), playbook)
-            if not yesno("Do you really want to apply '%s' to the host '%s' anyway?"):
-                sys.exit(1)
+        if not skip_host_check:
+            hosts = play_ds.get('hosts')
+            if isinstance(hosts, basestring):
+                hosts = hosts.split(':')
+            if self.id not in hosts:
+                log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.id, ','.join(hosts), playbook)
+                if not yesno("Do you really want to apply '%s' to the host '%s' anyway?"):
+                    sys.exit(1)
         play_ds['hosts'] = [self.id]
     return pb
 
