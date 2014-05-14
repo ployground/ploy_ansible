@@ -3,6 +3,7 @@ from ansible.inventory import Group
 from ansible.inventory import Host
 from ansible.inventory import Inventory as BaseInventory
 from ansible.inventory.vars_plugins.group_vars import VarsModule
+import sys
 
 
 class Inventory(BaseInventory):
@@ -14,6 +15,8 @@ class Inventory(BaseInventory):
         ansible_config = aws.config.get('global', {}).get('ansible', {})
         if 'playbooks-directory' in ansible_config:
             self.set_playbook_basedir(ansible_config['playbooks-directory'])
+        else:
+            print >>sys.stderr, "No playbooks-directory set, things like variable lookup may not work correctly."
         groups = {}
         groups['all'] = self.get_group('all')
         for instance in self.aws.instances.values():
