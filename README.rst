@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0b2 - Unreleased
+1.0b2 - 2014-05-15
 ------------------
 
 * Add ``configure`` command which is a stripped down variant of the
