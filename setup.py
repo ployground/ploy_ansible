@@ -24,7 +24,6 @@ setup(
     install_requires=[
         'setuptools',
         'mr.awsome >= 1.0rc2',
-        'ansible'
     ],
     entry_points="""
         [mr.awsome.plugins]

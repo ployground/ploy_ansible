@@ -4,6 +4,9 @@ Changelog
 1.0b3 - unreleased
 ------------------
 
+* Removed ``ansible`` from install requirements. It won't install in a buildout
+  so it needs to be installed in a virtualenv or via a system package.
+  [fschulze]
 
 
 1.0b2 - 2014-05-15
