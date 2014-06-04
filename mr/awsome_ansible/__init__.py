@@ -344,8 +344,14 @@ class AnsibleConfigureCmd(object):
 
     def __init__(self, aws):
         self.aws = aws
-        self.ansible_config = self.aws.config.get('global', {}).get('ansible', {})
-        self.playbooks_directory = self.ansible_config.get(
+
+    @property
+    def ansible_config(self):
+        return self.aws.config.get('global', {}).get('ansible', {})
+
+    @property
+    def playbooks_directory(self):
+        return self.ansible_config.get(
             'playbooks-directory',
             self.aws.config.path)
 
