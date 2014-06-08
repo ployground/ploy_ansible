@@ -148,3 +148,30 @@ def test_playbook(aws, monkeypatch):
     monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
     aws(['./bin/aws', 'playbook', yml])
     assert runmock.called
+
+
+def test_ansible_without_args(aws):
+    with patch('sys.stdout') as StdOutMock:
+        StdOutMock.encoding = 'utf-8'
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'ansible'])
+    output = "".join(x[0][0] for x in StdOutMock.write.call_args_list)
+    assert 'Usage: aws ansible' in output
+
+
+def test_ansible_with_nonexisting_instance(aws):
+    with patch('sys.stderr') as StdErrMock:
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'ansible', 'bar'])
+    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
+    assert "No hosts matched" in output
+
+
+def test_ansible(aws, monkeypatch):
+    runmock = MagicMock()
+    monkeypatch.setattr("ansible.runner.Runner.run", runmock)
+    runmock.return_value = dict(
+        contacted=dict(),
+        dark=[])
+    aws(['./bin/aws', 'ansible', 'foo', '-a', 'ls'])
+    assert runmock.called
