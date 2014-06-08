@@ -4,6 +4,10 @@ Changelog
 1.0b3 - unreleased
 ------------------
 
+* Add support for su and vault (ansible 1.5) as well as ``--force-handlers``
+  (ansible 1.6).
+  [fschulze]
+
 * Removed ``ansible`` from install requirements. It won't install in a buildout
   so it needs to be installed in a virtualenv or via a system package.
   [fschulze]

@@ -32,6 +32,7 @@ class AnsibleCmd(object):
     def __call__(self, argv, help):
         import ansible.constants as C
         from ansible.runner import Runner
+        from ansible import errors
         from ansible import callbacks
         from mr.awsome_ansible.inventory import Inventory
         from ansible import utils
@@ -57,6 +58,18 @@ class AnsibleCmd(object):
         if len(args) == 0 or len(args) > 1:
             parser.print_help()
             sys.exit(1)
+
+        # su and sudo command line arguments need to be mutually exclusive
+        if (hasattr(options, 'su')
+                and (options.su or options.su_user or options.ask_su_pass)
+                and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
+            parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
+                         "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
+                         "mutually exclusive")
+
+        if hasattr(options, 'ask_vault_pass') and (options.ask_vault_pass and options.vault_password_file):
+                parser.error("--ask-vault-pass and --vault-password-file are mutually exclusive")
+
         cbs = callbacks.CliRunnerCallbacks()
         cbs.options = options
         pattern = args[0]
@@ -64,6 +77,37 @@ class AnsibleCmd(object):
         inventory_manager = Inventory(self.aws)
         if options.subset:
             inventory_manager.subset(options.subset)
+        sudopass = None
+        su_pass = None
+        vault_pass = None
+        kw = {}
+        options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
+        kw['ask_sudo_pass'] = options.ask_sudo_pass
+        if hasattr(options, 'ask_su_pass'):
+            options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
+            kw['ask_su_pass'] = options.ask_sudo_pass
+        if hasattr(options, 'ask_vault_pass'):
+            options.ask_vault_pass = options.ask_vault_pass or C.DEFAULT_ASK_VAULT_PASS
+            kw['ask_vault_pass'] = options.ask_vault_pass
+        passwds = utils.ask_passwords(**kw)
+        if len(passwds) == 2:
+            (sshpass, sudopass) = passwds
+        elif len(passwds) == 3:
+            (sshpass, sudopass, su_pass) = passwds
+        else:
+            (sshpass, sudopass, su_pass, vault_pass) = passwds
+        if getattr(options, 'vault_password_file', None):
+            this_path = os.path.expanduser(options.vault_password_file)
+            try:
+                f = open(this_path, "rb")
+                tmp_vault_pass = f.read().strip()
+                f.close()
+            except (OSError, IOError), e:
+                raise errors.AnsibleError("Could not read %s: %s" % (this_path, e))
+
+            if not options.ask_vault_pass:
+                vault_pass = tmp_vault_pass
+
         hosts = inventory_manager.list_hosts(pattern)
         if len(hosts) == 0:
             callbacks.display("No hosts matched", stderr=True)
@@ -76,27 +120,43 @@ class AnsibleCmd(object):
                 and not options.module_args):
             callbacks.display("No argument passed to %s module" % options.module_name, color='red', stderr=True)
             sys.exit(1)
-        sudopass = None
-        options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
-        sudopass = utils.ask_passwords(ask_sudo_pass=options.ask_sudo_pass)
+
         if options.sudo_user or options.ask_sudo_pass:
             options.sudo = True
         options.sudo_user = options.sudo_user or C.DEFAULT_SUDO_USER
+        if hasattr(options, 'su'):
+            if options.su_user or options.ask_su_pass:
+                options.su = True
+            options.su_user = options.su_user or C.DEFAULT_SU_USER
         if options.tree:
             utils.prepare_writeable_dir(options.tree)
+        kw = {}
+        if hasattr(options, 'su'):
+            kw['su'] = options.su
+            kw['su_user'] = options.su_user
+        if hasattr(options, 'su_pass'):
+            kw['su_pass'] = options.su_pass
+        if vault_pass:
+            kw['vault_password'] = vault_pass
         runner = Runner(
-            module_name=options.module_name, module_path=options.module_path,
+            module_name=options.module_name,
+            module_path=options.module_path,
             module_args=options.module_args,
             remote_user=options.remote_user,
-            inventory=inventory_manager, timeout=options.timeout,
+            inventory=inventory_manager,
+            timeout=options.timeout,
             private_key_file=options.private_key_file,
             forks=options.forks,
             pattern=pattern,
-            callbacks=cbs, sudo=options.sudo,
-            sudo_pass=sudopass, sudo_user=options.sudo_user,
-            transport='ssh', subset=options.subset,
+            callbacks=cbs,
+            sudo=options.sudo,
+            sudo_pass=sudopass,
+            sudo_user=options.sudo_user,
+            transport='ssh',
+            subset=options.subset,
             check=options.check,
-            diff=options.check)
+            diff=options.check,
+            **kw)
         results = runner.run()
         for result in results['contacted'].values():
             if 'failed' in result or result.get('rc', 0) != 0:
@@ -115,12 +175,14 @@ class AnsiblePlaybookCmd(object):
         inject_ansible_paths()
         import ansible.playbook
         import ansible.constants as C
+        from ansible import __version__
         from ansible import errors
         from ansible import callbacks
         from mr.awsome_ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
 
+        ansible_version = tuple(int(x) for x in __version__.split('.'))
         parser = utils.base_parser(
             constants=C,
             connect_opts=True,
@@ -153,12 +215,26 @@ class AnsiblePlaybookCmd(object):
         parser.add_option(
             '--start-at-task', dest='start_at',
             help="start the playbook at the task matching this name")
+        if ansible_version >= (1, 6):
+            parser.add_option('--force-handlers', dest='force_handlers', action='store_true',
+                help="run handlers even if a task fails")
         options, args = parser.parse_args(argv)
         cbs = callbacks.CliRunnerCallbacks()
         cbs.options = options
         if len(args) == 0:
             parser.print_help(file=sys.stderr)
             sys.exit(1)
+
+        # su and sudo command line arguments need to be mutually exclusive
+        if (hasattr(options, 'su')
+                and (options.su or options.su_user or options.ask_su_pass)
+                and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
+            parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
+                         "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
+                         "mutually exclusive")
+
+        if hasattr(options, 'ask_vault_pass') and (options.ask_vault_pass and options.vault_password_file):
+                parser.error("--ask-vault-pass and --vault-password-file are mutually exclusive")
 
         def colorize(lead, num, color):
             """ Print 'lead' = 'num' in 'color' """
@@ -181,17 +257,51 @@ class AnsiblePlaybookCmd(object):
             patch_connect(self.aws)
             inventory = Inventory(self.aws)
             sudopass = None
+            su_pass = None
+            vault_pass = None
             if not options.listhosts and not options.syntax and not options.listtasks:
+                kw = {}
                 options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
-                sudopass = utils.ask_passwords(ask_sudo_pass=options.ask_sudo_pass)
+                kw['ask_sudo_pass'] = options.ask_sudo_pass
+                if hasattr(options, 'ask_su_pass'):
+                    options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
+                    kw['ask_su_pass'] = options.ask_sudo_pass
+                if hasattr(options, 'ask_vault_pass'):
+                    options.ask_vault_pass = options.ask_vault_pass or C.DEFAULT_ASK_VAULT_PASS
+                    kw['ask_vault_pass'] = options.ask_vault_pass
+                passwds = utils.ask_passwords(**kw)
+                if len(passwds) == 2:
+                    (sshpass, sudopass) = passwds
+                elif len(passwds) == 3:
+                    (sshpass, sudopass, su_pass) = passwds
+                else:
+                    (sshpass, sudopass, su_pass, vault_pass) = passwds
                 if options.sudo_user or options.ask_sudo_pass:
                     options.sudo = True
                 options.sudo_user = options.sudo_user or C.DEFAULT_SUDO_USER
+                if hasattr(options, 'su'):
+                    if options.su_user or options.ask_su_pass:
+                        options.su = True
+                    options.su_user = options.su_user or C.DEFAULT_SU_USER
+                if getattr(options, 'vault_password_file', None):
+                    this_path = os.path.expanduser(options.vault_password_file)
+                    try:
+                        f = open(this_path, "rb")
+                        tmp_vault_pass = f.read().strip()
+                        f.close()
+                    except (OSError, IOError), e:
+                        raise errors.AnsibleError("Could not read %s: %s" % (this_path, e))
+
+                    if not options.ask_vault_pass:
+                        vault_pass = tmp_vault_pass
             extra_vars = {}
             for extra_vars_opt in options.extra_vars:
                 if extra_vars_opt.startswith("@"):
                     # Argument is a YAML file (JSON is a subset of YAML)
-                    extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml_from_file(extra_vars_opt[1:]))
+                    kw = {}
+                    if vault_pass:
+                        kw['vault_password'] = vault_pass
+                    extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml_from_file(extra_vars_opt[1:]), **kw)
                 elif extra_vars_opt and extra_vars_opt[0] in '[{':
                     # Arguments as YAML
                     extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml(extra_vars_opt))
@@ -222,6 +332,16 @@ class AnsiblePlaybookCmd(object):
                     playbook_cb.start_at = options.start_at
                 runner_cb = callbacks.PlaybookRunnerCallbacks(stats, verbose=utils.VERBOSITY)
 
+                kw = {}
+                if hasattr(options, 'su'):
+                    kw['su'] = options.su
+                    kw['su_user'] = options.su_user
+                if hasattr(options, 'su_pass'):
+                    kw['su_pass'] = options.su_pass
+                if vault_pass:
+                    kw['vault_password'] = vault_pass
+                if hasattr(options, 'force_handlers'):
+                    kw['force_handlers'] = options.force_handlers
                 pb = ansible.playbook.PlayBook(
                     playbook=playbook,
                     module_path=options.module_path,
@@ -241,8 +361,8 @@ class AnsiblePlaybookCmd(object):
                     only_tags=only_tags,
                     skip_tags=skip_tags,
                     check=options.check,
-                    diff=options.diff
-                )
+                    diff=options.diff,
+                    **kw)
 
                 if options.listhosts or options.listtasks or options.syntax:
                     print ''
@@ -253,12 +373,11 @@ class AnsiblePlaybookCmd(object):
                         playnum += 1
                         play = ansible.playbook.Play(pb, play_ds, play_basedir)
                         label = play.name
-                        if options.listhosts:
-                            hosts = pb.inventory.list_hosts(play.hosts)
-                            print '  play #%d (%s): host count=%d' % (playnum, label, len(hosts))
-                            for host in hosts:
-                                print '    %s' % host
-                        if options.listtasks:
+                        hosts = pb.inventory.list_hosts(play.hosts)
+                        # Filter all tasks by given tags
+                        if pb.only_tags != 'all':
+                            if options.subset and not hosts:
+                                continue
                             matched_tags, unmatched_tags = play.compare_tags(pb.only_tags)
 
                             # Remove skipped tasks
@@ -270,6 +389,13 @@ class AnsiblePlaybookCmd(object):
 
                             if unknown_tags:
                                 continue
+
+                        if options.listhosts:
+                            print '  play #%d (%s): host count=%d' % (playnum, label, len(hosts))
+                            for host in hosts:
+                                print '    %s' % host
+
+                        if options.listtasks:
                             print '  play #%d (%s):' % (playnum, label)
 
                             for task in play.tasks():
