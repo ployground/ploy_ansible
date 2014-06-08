@@ -573,6 +573,16 @@ def connect_patch_factory(aws):
                 if key[0].isupper():
                     self.active.common_args.append('-o')
                     self.active.common_args.append('%s=%s' % (key, ssh_info[key]))
+            indices = []
+            for i, option in enumerate(self.active.common_args):
+                if option == '-o':
+                    index = i
+                    continue
+                if option.startswith(('ControlMaster=', 'ControlPersist=', 'ControlPath=')):
+                    indices.append(index)
+                    indices.append(i)
+            for i in sorted(indices, reverse=True):
+                del self.active.common_args[i]
         self.active.delegate = host
         return self.active
 

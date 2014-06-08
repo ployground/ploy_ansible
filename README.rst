@@ -4,6 +4,11 @@ Changelog
 1.0b3 - unreleased
 ------------------
 
+* Prevent use of persistent ssh connections, as that easily results in
+  connections to wrong jails because of the proxying. This makes ansible a lot
+  slower at the moment.
+  [fschulze]
+
 * Add support for su and vault (ansible 1.5) as well as ``--force-handlers``
   (ansible 1.6).
   [fschulze]
