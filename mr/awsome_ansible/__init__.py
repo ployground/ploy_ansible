@@ -42,7 +42,7 @@ class AnsibleCmd(object):
             output_opts=True,
             check_opts=True,
             diff_opts=False,
-            usage='aws ansible <host-pattern> [options]'
+            usage='%s ansible <host-pattern> [options]' % self.aws.progname
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
@@ -128,7 +128,7 @@ class AnsiblePlaybookCmd(object):
             subset_opts=True,
             check_opts=True,
             diff_opts=True,
-            usage='aws playbook playbook.yml'
+            usage='%s playbook playbook.yml' % self.aws.progname
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
@@ -365,7 +365,7 @@ class AnsibleConfigureCmd(object):
     def __call__(self, argv, help):
         """Configure an instance (ansible playbook run) after it has been started."""
         parser = argparse.ArgumentParser(
-            prog="ploy configure",
+            prog="%s configure" % self.aws.progname,
             description=help,
             add_help=False,
         )
@@ -484,16 +484,16 @@ def get_playbook(self, playbook, *args, **kwargs):
             stats=stats,
             **kwargs)
     except ansible.errors.AnsibleError as e:
-        log.error(e)
+        log.error(str(e))
         sys.exit(1)
     for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
         if not skip_host_check:
-            hosts = play_ds.get('hosts')
+            hosts = play_ds.get('hosts', '')
             if isinstance(hosts, basestring):
                 hosts = hosts.split(':')
             if self.id not in hosts:
                 log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.id, ','.join(hosts), playbook)
-                if not yesno("Do you really want to apply '%s' to the host '%s' anyway?"):
+                if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.id)):
                     sys.exit(1)
         play_ds['hosts'] = [self.id]
     return pb
