@@ -320,6 +320,7 @@ class AnsiblePlaybookCmd(object):
 
             # run all playbooks specified on the command line
             for playbook in args:
+                playbook = os.path.abspath(playbook)
 
                 # let inventory know which playbooks are using so it can know the basedirs
                 inventory.set_playbook_basedir(os.path.dirname(playbook))
@@ -663,7 +664,9 @@ def get_commands(aws):
 
 def get_massagers():
     from mr.awsome.config import PathMassager
-    return [PathMassager('global', 'playbooks-directory')]
+    return [
+        PathMassager('ansible', 'playbooks-directory'),
+        PathMassager('global', 'playbooks-directory')]
 
 
 plugin = dict(

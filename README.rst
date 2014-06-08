@@ -4,6 +4,9 @@ Changelog
 1.0b3 - unreleased
 ------------------
 
+* Make sure the playbook directory is always absolute.
+  [fschulze]
+
 * Prevent use of persistent ssh connections, as that easily results in
   connections to wrong jails because of the proxying. This makes ansible a lot
   slower at the moment.
