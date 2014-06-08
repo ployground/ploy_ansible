@@ -1,4 +1,4 @@
-from mock import patch
+from mock import MagicMock, patch
 import os
 import pytest
 import shutil
@@ -90,6 +90,61 @@ def test_configure(aws, monkeypatch):
         f.write('\n'.join([
             '---',
             '- hosts: foo']))
-    monkeypatch.setattr("ansible.playbook.PlayBook.run", lambda s: 0 / 0)
-    with pytest.raises(ZeroDivisionError):
-        aws(['./bin/aws', 'configure', 'foo'])
+    runmock = MagicMock()
+    monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
+    aws(['./bin/aws', 'configure', 'foo'])
+    assert runmock.called
+
+
+def test_playbook_without_args(aws):
+    with patch('sys.stderr') as StdErrMock:
+        StdErrMock.encoding = 'utf-8'
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'playbook'])
+    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
+    assert 'Usage: aws playbook playbook.yml' in output
+
+
+def test_playbook_with_nonexisting_playbook(aws):
+    with patch('sys.stderr') as StdErrMock:
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'playbook', 'bar.yml'])
+    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
+    assert "the playbook: bar.yml could not be found" in output
+
+
+def test_playbook_with_empty_yml(aws):
+    yml = os.path.join(aws.configpath, 'foo.yml')
+    with open(yml, 'w') as f:
+        f.write('\n'.join([
+            '']))
+    with patch('sys.stderr') as StdErrMock:
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'playbook', yml])
+    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
+    assert 'parse error: playbooks must be formatted as a YAML list, got' in output
+
+
+def test_playbook_asks_when_no_host_in_yml(aws):
+    yml = os.path.join(aws.configpath, 'foo.yml')
+    with open(yml, 'w') as f:
+        f.write('\n'.join([
+            '---',
+            '- {}']))
+    with patch('sys.stderr') as StdErrMock:
+        with pytest.raises(SystemExit):
+            aws(['./bin/aws', 'playbook', yml])
+    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
+    assert 'hosts declaration is required' in output
+
+
+def test_playbook(aws, monkeypatch):
+    yml = os.path.join(aws.configpath, 'foo.yml')
+    with open(yml, 'w') as f:
+        f.write('\n'.join([
+            '---',
+            '- hosts: foo']))
+    runmock = MagicMock()
+    monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
+    aws(['./bin/aws', 'playbook', yml])
+    assert runmock.called
