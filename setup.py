@@ -23,7 +23,7 @@ setup(
     namespace_packages=['mr'],
     install_requires=[
         'setuptools',
-        'mr.awsome >= 1.0rc2',
+        'mr.awsome >= 1.0rc5',
     ],
     entry_points="""
         [mr.awsome.plugins]

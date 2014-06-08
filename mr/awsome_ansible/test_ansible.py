@@ -16,6 +16,7 @@ def test_register_ansible_module_path_from_multiple_entry_points():
 @pytest.yield_fixture
 def aws():
     from mr.awsome import AWS
+    import mr.awsome_ansible
     import mr.awsome.tests.dummy_plugin
     directory = tempfile.mkdtemp()
     configfile = os.path.join(directory, 'aws.conf')
