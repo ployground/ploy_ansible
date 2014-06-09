@@ -216,7 +216,8 @@ class AnsiblePlaybookCmd(object):
             '--start-at-task', dest='start_at',
             help="start the playbook at the task matching this name")
         if ansible_version >= (1, 6):
-            parser.add_option('--force-handlers', dest='force_handlers', action='store_true',
+            parser.add_option(
+                '--force-handlers', dest='force_handlers', action='store_true',
                 help="run handlers even if a task fails")
         options, args = parser.parse_args(argv)
         cbs = callbacks.CliRunnerCallbacks()
