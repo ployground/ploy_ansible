@@ -67,7 +67,7 @@ def test_configure_with_empty_yml(aws):
             aws(['./bin/aws', 'configure', 'foo'])
     assert len(LogMock.error.call_args_list) == 1
     call_args = LogMock.error.call_args_list[0][0]
-    assert 'parse error: playbooks must be formatted as a YAML list, got' in call_args[0]
+    assert 'parse error: playbooks must be formatted as a YAML list' in call_args[0]
 
 
 def test_configure_asks_when_no_host_in_yml(aws):
@@ -122,7 +122,7 @@ def test_playbook_with_empty_yml(aws):
         with pytest.raises(SystemExit):
             aws(['./bin/aws', 'playbook', yml])
     output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'parse error: playbooks must be formatted as a YAML list, got' in output
+    assert 'parse error: playbooks must be formatted as a YAML list' in output
 
 
 def test_playbook_asks_when_no_host_in_yml(aws):
