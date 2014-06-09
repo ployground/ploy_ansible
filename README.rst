@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0b3 - unreleased
+1.0b3 - 2014-06-09
 ------------------
 
 * Use execnet for connections. There is only one ssh connection per host and
