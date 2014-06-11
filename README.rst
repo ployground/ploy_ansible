@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0b4 - unreleased
+1.0b4 - 2014-06-11
 ------------------
 
 * Added ``playbook`` and ``roles`` config options for instances.
