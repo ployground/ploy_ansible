@@ -4,6 +4,14 @@ Changelog
 1.0b4 - unreleased
 ------------------
 
+* Added ``playbook`` and ``roles`` config options for instances.
+  [fschulze]
+
+* Added ``has_playbook`` and ``configure`` methods to instances.
+  [fschulze]
+
+* Added before/after_ansible_configure hooks.
+  [fschulze]
 
 
 1.0b3 - 2014-06-09

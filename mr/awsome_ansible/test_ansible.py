@@ -85,6 +85,83 @@ def test_configure(aws, monkeypatch, tempdir):
     assert runmock.called
 
 
+def test_configure_playbook_option(aws, awsconf, tempdir):
+    import ansible.playbook
+    yml = tempdir['bar.yml']
+    yml.fill([
+        '---',
+        '- hosts: foo'])
+    awsconf.fill([
+        '[dummy-instance:foo]',
+        'playbook = %s' % yml.path])
+    with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
+        aws(['./bin/aws', 'configure', 'foo'])
+    assert runmock.called
+    assert runmock.call_args[0][0].filename == yml.path
+
+
+def test_configure_playbook_option_shadowing(aws, awsconf, caplog, tempdir):
+    import ansible.playbook
+    yml_foo = tempdir['foo.yml']
+    yml_foo.fill('')
+    yml_bar = tempdir['bar.yml']
+    yml_bar.fill([
+        '---',
+        '- hosts: foo'])
+    awsconf.fill([
+        '[dummy-instance:foo]',
+        'playbook = %s' % yml_bar.path])
+    with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
+        aws(['./bin/aws', 'configure', 'foo'])
+    assert runmock.called
+    assert runmock.call_args[0][0].filename == yml_bar.path
+    assert [x.message for x in caplog.records()] == [
+        "Instance 'foo' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (yml_foo.path, yml_bar.path),
+        "Using playbook at '%s'." % yml_bar.path]
+
+
+def test_configure_roles_option(aws, awsconf):
+    import ansible.playbook
+    awsconf.fill([
+        '[dummy-instance:foo]',
+        'roles = ham egg'])
+    with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
+        aws(['./bin/aws', 'configure', 'foo'])
+    assert runmock.called
+    assert runmock.call_args[0][0].filename == "<dynamically generated from ['ham', 'egg']>"
+    assert runmock.call_args[0][0].playbook == [{'hosts': ['foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
+    assert runmock.call_args[0][0].play_basedirs == [awsconf.directory]
+
+
+def test_configure_roles_default_playbook_conflict(aws, awsconf, caplog, tempdir):
+    yml = tempdir['foo.yml']
+    yml.fill('')
+    awsconf.fill([
+        '[dummy-instance:foo]',
+        'roles = ham egg'])
+    with pytest.raises(SystemExit):
+        aws(['./bin/aws', 'configure', 'foo'])
+    assert [x.message for x in caplog.records()] == [
+        "Using playbook at '%s'." % yml.path,
+        "You can't use a playbook and the 'roles' options at the same time for instance 'foo'."]
+
+
+def test_configure_roles_playbook_option_conflict(aws, awsconf, caplog, tempdir):
+    yml = tempdir['bar.yml']
+    yml.fill([
+        '---',
+        '- hosts: foo'])
+    awsconf.fill([
+        '[dummy-instance:foo]',
+        'playbook = %s' % yml.path,
+        'roles = ham egg'])
+    with pytest.raises(SystemExit):
+        aws(['./bin/aws', 'configure', 'foo'])
+    assert [x.message for x in caplog.records()] == [
+        "Using playbook at '%s'." % yml.path,
+        "You can't use a playbook and the 'roles' options at the same time for instance 'foo'."]
+
+
 def test_playbook_without_args(aws):
     with patch('sys.stderr') as StdErrMock:
         StdErrMock.encoding = 'utf-8'

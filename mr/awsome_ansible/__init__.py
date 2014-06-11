@@ -23,6 +23,11 @@ def inject_ansible_paths():
     C.DEFAULT_MODULE_PATH = pathsep.join([pathsep.join(extra_library), C.DEFAULT_MODULE_PATH])
 
 
+def get_playbooks_directory(main_config):
+    ansible_config = main_config.get('global', {}).get('ansible', {})
+    return ansible_config.get('playbooks-directory', main_config.path)
+
+
 class AnsibleCmd(object):
     """Run Ansible"""
 
@@ -473,21 +478,11 @@ class AnsibleConfigureCmd(object):
     def __init__(self, aws):
         self.aws = aws
 
-    @property
-    def ansible_config(self):
-        return self.aws.config.get('global', {}).get('ansible', {})
-
-    @property
-    def playbooks_directory(self):
-        return self.ansible_config.get(
-            'playbooks-directory',
-            self.aws.config.path)
-
     def get_completion(self):
-        instances = []
+        instances = set()
         for instance in self.aws.instances:
-            if os.path.exists(os.path.join(self.playbooks_directory, '%s.yml' % instance)):
-                instances.append(instance)
+            if self.aws.instances[instance].has_playbook():
+                instances.add(instance)
         return instances
 
     def __call__(self, argv, help):
@@ -514,15 +509,15 @@ class AnsibleConfigureCmd(object):
             choices=self.get_completion())
         args = parser.parse_args(argv)
         instance = self.aws.instances[args.instance[0]]
-        playbook_path = os.path.join(self.playbooks_directory, '%s.yml' % args.instance[0])
         only_tags = args.only_tags.split(",")
         skip_tags = args.skip_tags
         if skip_tags is not None:
             skip_tags = skip_tags.split(",")
-        instance.apply_playbook(
-            playbook_path,
+        instance.hooks.before_ansible_configure(instance)
+        instance.configure(
             only_tags=only_tags,
             skip_tags=skip_tags)
+        instance.hooks.after_ansible_configure(instance)
 
 
 def connect_patch_factory(aws):
@@ -546,7 +541,19 @@ def patch_connect(aws):
         Connection.connect = connect_patch_factory(aws)
 
 
-def get_playbook(self, playbook, *args, **kwargs):
+def has_playbook(self):
+    playbooks_directory = get_playbooks_directory(self.master.main_config)
+    playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.id)
+    if os.path.exists(playbook_path):
+        return True
+    if 'playbook' in self.config:
+        return True
+    if 'roles' in self.config:
+        return True
+    return False
+
+
+def get_playbook(self, *args, **kwargs):
     inject_ansible_paths()
     import ansible.playbook
     import ansible.callbacks
@@ -554,16 +561,61 @@ def get_playbook(self, playbook, *args, **kwargs):
     import ansible.utils
     from mr.awsome_ansible.inventory import Inventory
 
+    host = self.id
+    user = self.config.get('user', 'root')
+    playbooks_directory = get_playbooks_directory(self.master.main_config)
+
+    class PlayBook(ansible.playbook.PlayBook):
+        def __init__(self, *args, **kwargs):
+            self.roles = kwargs.pop('roles', None)
+            if self.roles is not None:
+                if isinstance(self.roles, basestring):
+                    self.roles = self.roles.split()
+                kwargs['playbook'] = '<dynamically generated from %s>' % self.roles
+            ansible.playbook.PlayBook.__init__(self, *args, **kwargs)
+            self.basedir = playbooks_directory
+
+        def _load_playbook_from_file(self, *args, **kwargs):
+            if self.roles is None:
+                return ansible.playbook.PlayBook._load_playbook_from_file(
+                    self, *args, **kwargs)
+            return (
+                [{
+                    'hosts': [host],
+                    'user': user,
+                    'roles': self.roles}],
+                [playbooks_directory])
+
     patch_connect(self.master.aws)
+    playbook = kwargs.pop('playbook', None)
+    if playbook is None:
+        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.id)
+        if os.path.exists(playbook_path):
+            playbook = playbook_path
+        if 'playbook' in self.config:
+            if playbook is not None and playbook != self.config['playbook']:
+                log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.id, playbook, self.config['playbook']))
+            playbook = self.config['playbook']
+    if playbook is not None:
+        log.info("Using playbook at '%s'." % playbook)
+    roles = kwargs.pop('roles', None)
+    if roles is None and 'roles' in self.config:
+        roles = self.config['roles']
+    if roles is not None and playbook is not None:
+        log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.id)
+        sys.exit(1)
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
     runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
     inventory = Inventory(self.master.aws)
     skip_host_check = kwargs.pop('skip_host_check', False)
+    if roles is None:
+        kwargs['playbook'] = playbook
+    else:
+        kwargs['roles'] = roles
     try:
-        pb = ansible.playbook.PlayBook(
+        pb = PlayBook(
             *args,
-            playbook=playbook,
             callbacks=callbacks,
             inventory=inventory,
             runner_callbacks=runner_callbacks,
@@ -586,7 +638,11 @@ def get_playbook(self, playbook, *args, **kwargs):
 
 
 def apply_playbook(self, playbook, *args, **kwargs):
-    self.get_playbook(playbook, *args, **kwargs).run()
+    self.get_playbook(playbook=playbook, *args, **kwargs).run()
+
+
+def configure(self, *args, **kwargs):
+    self.get_playbook(*args, **kwargs).run()
 
 
 def get_ansible_variables(self):
@@ -598,8 +654,12 @@ def get_ansible_variables(self):
 def augment_instance(instance):
     if not hasattr(instance, 'apply_playbook'):
         instance.apply_playbook = apply_playbook.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'has_playbook'):
+        instance.has_playbook = has_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_playbook'):
         instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'configure'):
+        instance.configure = configure.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
 
