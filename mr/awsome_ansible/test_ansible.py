@@ -1,8 +1,5 @@
 from mock import MagicMock, patch
-import os
 import pytest
-import shutil
-import tempfile
 
 
 def test_register_ansible_module_path():
@@ -13,22 +10,18 @@ def test_register_ansible_module_path_from_multiple_entry_points():
     pass
 
 
-@pytest.yield_fixture
-def aws():
+@pytest.fixture
+def aws(awsconf):
     from mr.awsome import AWS
     import mr.awsome_ansible
     import mr.awsome.tests.dummy_plugin
-    directory = tempfile.mkdtemp()
-    configfile = os.path.join(directory, 'aws.conf')
-    with open(configfile, 'w') as f:
-        f.write('\n'.join([
-            '[dummy-instance:foo]']))
-    aws = AWS(configpath=directory)
+    awsconf.fill([
+        '[dummy-instance:foo]'])
+    aws = AWS(configpath=awsconf.directory)
     aws.plugins = {
         'dummy': mr.awsome.tests.dummy_plugin.plugin,
         'ansible': mr.awsome_ansible.plugin}
-    yield aws
-    shutil.rmtree(directory)
+    return aws
 
 
 def test_configure_without_args(aws):
@@ -58,10 +51,8 @@ def test_configure_with_missing_yml(aws):
     assert "argument instance: invalid choice: 'foo'" in output
 
 
-def test_configure_with_empty_yml(aws):
-    with open(os.path.join(aws.configpath, 'foo.yml'), 'w') as f:
-        f.write('\n'.join([
-            '']))
+def test_configure_with_empty_yml(aws, tempdir):
+    tempdir['foo.yml'].fill('')
     with patch('mr.awsome_ansible.log') as LogMock:
         with pytest.raises(SystemExit):
             aws(['./bin/aws', 'configure', 'foo'])
@@ -70,26 +61,24 @@ def test_configure_with_empty_yml(aws):
     assert 'parse error: playbooks must be formatted as a YAML list' in call_args[0]
 
 
-def test_configure_asks_when_no_host_in_yml(aws):
-    yml = os.path.join(aws.configpath, 'foo.yml')
-    with open(yml, 'w') as f:
-        f.write('\n'.join([
-            '---',
-            '- {}']))
+def test_configure_asks_when_no_host_in_yml(aws, tempdir):
+    yml = tempdir['foo.yml']
+    yml.fill([
+        '---',
+        '- {}'])
     with patch('mr.awsome_ansible.yesno') as YesNoMock:
         YesNoMock.return_value = False
         with pytest.raises(SystemExit):
             aws(['./bin/aws', 'configure', 'foo'])
     assert len(YesNoMock.call_args_list) == 1
     call_args = YesNoMock.call_args_list[0][0]
-    assert "Do you really want to apply '%s' to the host '%s'?" % (yml, 'foo') in call_args[0]
+    assert "Do you really want to apply '%s' to the host '%s'?" % (yml.path, 'foo') in call_args[0]
 
 
-def test_configure(aws, monkeypatch):
-    with open(os.path.join(aws.configpath, 'foo.yml'), 'w') as f:
-        f.write('\n'.join([
-            '---',
-            '- hosts: foo']))
+def test_configure(aws, monkeypatch, tempdir):
+    tempdir['foo.yml'].fill([
+        '---',
+        '- hosts: foo'])
     runmock = MagicMock()
     monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
     aws(['./bin/aws', 'configure', 'foo'])
@@ -113,40 +102,36 @@ def test_playbook_with_nonexisting_playbook(aws):
     assert "the playbook: bar.yml could not be found" in output
 
 
-def test_playbook_with_empty_yml(aws):
-    yml = os.path.join(aws.configpath, 'foo.yml')
-    with open(yml, 'w') as f:
-        f.write('\n'.join([
-            '']))
+def test_playbook_with_empty_yml(aws, tempdir):
+    yml = tempdir['foo.yml']
+    yml.fill('')
     with patch('sys.stderr') as StdErrMock:
         with pytest.raises(SystemExit):
-            aws(['./bin/aws', 'playbook', yml])
+            aws(['./bin/aws', 'playbook', yml.path])
     output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
     assert 'parse error: playbooks must be formatted as a YAML list' in output
 
 
-def test_playbook_asks_when_no_host_in_yml(aws):
-    yml = os.path.join(aws.configpath, 'foo.yml')
-    with open(yml, 'w') as f:
-        f.write('\n'.join([
-            '---',
-            '- {}']))
+def test_playbook_asks_when_no_host_in_yml(aws, tempdir):
+    yml = tempdir['foo.yml']
+    yml.fill([
+        '---',
+        '- {}'])
     with patch('sys.stderr') as StdErrMock:
         with pytest.raises(SystemExit):
-            aws(['./bin/aws', 'playbook', yml])
+            aws(['./bin/aws', 'playbook', yml.path])
     output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
     assert 'hosts declaration is required' in output
 
 
-def test_playbook(aws, monkeypatch):
-    yml = os.path.join(aws.configpath, 'foo.yml')
-    with open(yml, 'w') as f:
-        f.write('\n'.join([
-            '---',
-            '- hosts: foo']))
+def test_playbook(aws, monkeypatch, tempdir):
+    yml = tempdir['foo.yml']
+    yml.fill([
+        '---',
+        '- hosts: foo'])
     runmock = MagicMock()
     monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
-    aws(['./bin/aws', 'playbook', yml])
+    aws(['./bin/aws', 'playbook', yml.path])
     assert runmock.called
 
 
@@ -178,6 +163,7 @@ def test_ansible(aws, monkeypatch):
 
 
 def test_execnet_connection(aws, monkeypatch):
+    import tempfile
     init_ssh_key_mock = MagicMock()
     init_ssh_key_mock.return_value = dict()
     monkeypatch.setattr(
@@ -204,10 +190,10 @@ def test_execnet_connection(aws, monkeypatch):
     (dict(host='foo', port=22), ['-p', '22', 'foo']),
     (dict(host='foo', port=22, ProxyCommand='ssh master -W 10.0.0.1'),
      ['-o', 'ProxyCommand=ssh master -W 10.0.0.1', '-p', '22', 'foo'])])
-def test_execnet_ssh_spec(aws, monkeypatch, ssh_info, expected):
+def test_execnet_ssh_spec(aws, awsconf, monkeypatch, ssh_info, expected):
     from mr.awsome_ansible.execnet_connection import Connection
     runner = MagicMock()
-    aws.configfile = os.path.join(aws.configpath, aws.configname)
+    aws.configfile = awsconf.path
     runner._awsome_aws = aws
     init_ssh_key_mock = MagicMock()
     init_ssh_key_mock.return_value = ssh_info
