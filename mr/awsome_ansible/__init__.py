@@ -25,7 +25,8 @@ def inject_ansible_paths():
 
 def get_playbooks_directory(main_config):
     ansible_config = main_config.get('global', {}).get('ansible', {})
-    return ansible_config.get('playbooks-directory', main_config.path)
+    default = os.path.dirname(main_config.path)
+    return ansible_config.get('playbooks-directory', default)
 
 
 class AnsibleCmd(object):

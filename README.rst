@@ -4,6 +4,8 @@ Changelog
 1.0b5 - unreleased
 ------------------
 
+* Change default playbook directory from the aws.conf directory to it's parent.
+  [fschulze]
 
 
 1.0b4 - 2014-06-11

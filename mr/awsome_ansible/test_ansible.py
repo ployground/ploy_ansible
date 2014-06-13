@@ -120,7 +120,7 @@ def test_configure_playbook_option_shadowing(aws, awsconf, caplog, tempdir):
         "Using playbook at '%s'." % yml_bar.path]
 
 
-def test_configure_roles_option(aws, awsconf):
+def test_configure_roles_option(aws, awsconf, tempdir):
     import ansible.playbook
     awsconf.fill([
         '[dummy-instance:foo]',
@@ -130,7 +130,7 @@ def test_configure_roles_option(aws, awsconf):
     assert runmock.called
     assert runmock.call_args[0][0].filename == "<dynamically generated from ['ham', 'egg']>"
     assert runmock.call_args[0][0].playbook == [{'hosts': ['foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
-    assert runmock.call_args[0][0].play_basedirs == [awsconf.directory]
+    assert runmock.call_args[0][0].play_basedirs == [tempdir.directory]
 
 
 def test_configure_roles_default_playbook_conflict(aws, awsconf, caplog, tempdir):
