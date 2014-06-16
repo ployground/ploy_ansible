@@ -4,6 +4,9 @@ Changelog
 1.0b5 - unreleased
 ------------------
 
+* Set user in playbook to the one from the config if it's not set already.
+  [fschulze]
+
 * Change default playbook directory from the aws.conf directory to it's parent.
   [fschulze]
 

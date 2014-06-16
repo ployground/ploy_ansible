@@ -631,6 +631,8 @@ def get_playbook(self, *args, **kwargs):
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
     for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
+        if 'user' not in play_ds:
+            play_ds['user'] = self.config.get('user', 'root')
         if not skip_host_check:
             hosts = play_ds.get('hosts', '')
             if isinstance(hosts, basestring):
