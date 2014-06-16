@@ -58,8 +58,8 @@ class Connection(object):
                     raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)
             try:
                 ssh_info = instance.init_ssh_key(user=self.user)
-            except instance.paramiko.SSHException:
-                raise errors.AnsibleError("Couldn't validate fingerprint for '%s'." % instance.id)
+            except instance.paramiko.SSHException as e:
+                raise errors.AnsibleError("Couldn't validate fingerprint for '%s': %s" % (instance.id, e))
             spec = execnet.XSpec('ssh')
             spec.ssh = SSHArgs(instance.ssh_args_from_info(ssh_info))
             vars = self.runner.inventory.get_variables(self.host)
