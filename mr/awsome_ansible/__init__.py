@@ -12,7 +12,11 @@ log = logging.getLogger('mr.awsome.ansible')
 
 def inject_ansible_paths():
     # collect and inject ansible paths (roles and library) from entrypoints
-    import ansible.constants as C
+    try:
+        import ansible.constants as C
+    except ImportError:
+        log.error("Can't import ansible, check whether it's installed correctly.")
+        sys.exit(1)
     extra_roles = []
     extra_library = []
     for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
@@ -624,7 +628,7 @@ def get_playbook(self, *args, **kwargs):
             stats=stats,
             **kwargs)
     except ansible.errors.AnsibleError as e:
-        log.error(str(e))
+        log.error("AnsibleError: %s" % e)
         sys.exit(1)
     for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
         if not skip_host_check:
@@ -644,7 +648,14 @@ def apply_playbook(self, playbook, *args, **kwargs):
 
 
 def configure(self, *args, **kwargs):
-    self.get_playbook(*args, **kwargs).run()
+    pb = self.get_playbook(*args, **kwargs)
+    # we have to wait importing ansible until after get_playbook ran, so the import order is correct
+    import ansible.errors
+    try:
+        pb.run()
+    except ansible.errors.AnsibleError as e:
+        log.error("AnsibleError: %s" % e)
+        sys.exit(1)
 
 
 def get_ansible_variables(self):
