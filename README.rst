@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0b5 - unreleased
+1.0b5 - 2014-06-16
 ------------------
 
 * Set user in playbook to the one from the config if it's not set already.
