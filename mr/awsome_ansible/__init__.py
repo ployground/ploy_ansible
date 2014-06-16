@@ -36,6 +36,7 @@ class AnsibleCmd(object):
         self.aws = aws
 
     def __call__(self, argv, help):
+        inject_ansible_paths()
         import ansible.constants as C
         from ansible.runner import Runner
         from ansible import errors
