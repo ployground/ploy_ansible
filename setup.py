@@ -23,7 +23,7 @@ setup(
     namespace_packages=['mr'],
     install_requires=[
         'setuptools',
-        'mr.awsome >= 1.0rc7',
+        'mr.awsome >= 1.0rc8',
         'execnet'
     ],
     entry_points="""
