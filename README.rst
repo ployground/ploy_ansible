@@ -4,6 +4,8 @@ Changelog
 1.0b6 - unreleased
 ------------------
 
+* Renamed mr.awsome to ploy and mr.awsome.ansible to ploy_ansible.
+  [fschulze]
 
 
 1.0b5 - 2014-06-16

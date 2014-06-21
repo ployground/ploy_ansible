@@ -11,22 +11,21 @@ version = "1.0b6"
 
 setup(
     version=version,
-    description="A plugin for mr.awsome providing integration with Ansible.",
+    description="A plugin for ploy providing integration with Ansible.",
     long_description=README + "\n\n",
-    name="mr.awsome.ansible",
+    name="ploy_ansible",
     author='Florian Schulze',
     author_email='florian.schulze@gmx.net',
-    url='http://github.com/fschulze/mr.awsome.ansible',
+    url='http://github.com/ployground/ploy_ansible',
     include_package_data=True,
     zip_safe=False,
-    packages=['mr', 'mr.awsome_ansible'],
-    namespace_packages=['mr'],
+    packages=['ploy_ansible'],
     install_requires=[
         'setuptools',
-        'mr.awsome >= 1.0rc8',
+        'ploy >= 1.0rc9',
         'execnet'
     ],
     entry_points="""
-        [mr.awsome.plugins]
-        ansible = mr.awsome_ansible:plugin
+        [ploy.plugins]
+        ansible = ploy_ansible:plugin
     """)

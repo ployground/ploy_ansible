@@ -1,6 +1,6 @@
 from ansible import errors
 from ansible import utils
-from mr.awsome_ansible import remote
+from ploy_ansible import remote
 import execnet
 import os
 import pipes
@@ -51,8 +51,8 @@ class Connection(object):
 
     def connect(self):
         if self._cache_key not in RPC_CACHE:
-            aws = self.runner._awsome_aws
-            instance = aws.instances[self.host]
+            ctrl = self.runner._ploy_ctrl
+            instance = ctrl.instances[self.host]
             if hasattr(instance, '_status'):
                 if instance._status() != 'running':
                     raise errors.AnsibleError("Instance '%s' unavailable." % instance.id)

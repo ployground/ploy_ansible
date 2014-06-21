@@ -3,11 +3,11 @@ import logging
 import pkg_resources
 import os
 import sys
-from mr.awsome.common import yesno
+from ploy.common import yesno
 from os.path import pathsep
 
 
-log = logging.getLogger('mr.awsome.ansible')
+log = logging.getLogger('ploy_ansible')
 
 
 def inject_ansible_paths():
@@ -36,8 +36,8 @@ def get_playbooks_directory(main_config):
 class AnsibleCmd(object):
     """Run Ansible"""
 
-    def __init__(self, aws):
-        self.aws = aws
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
 
     def __call__(self, argv, help):
         inject_ansible_paths()
@@ -45,7 +45,7 @@ class AnsibleCmd(object):
         from ansible.runner import Runner
         from ansible import errors
         from ansible import callbacks
-        from mr.awsome_ansible.inventory import Inventory
+        from ploy_ansible.inventory import Inventory
         from ansible import utils
         parser = utils.base_parser(
             constants=C,
@@ -54,7 +54,7 @@ class AnsibleCmd(object):
             output_opts=True,
             check_opts=True,
             diff_opts=False,
-            usage='%s ansible <host-pattern> [options]' % self.aws.progname
+            usage='%s ansible <host-pattern> [options]' % self.ctrl.progname
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
@@ -84,8 +84,8 @@ class AnsibleCmd(object):
         cbs = callbacks.CliRunnerCallbacks()
         cbs.options = options
         pattern = args[0]
-        patch_connect(self.aws)
-        inventory_manager = Inventory(self.aws)
+        patch_connect(self.ctrl)
+        inventory_manager = Inventory(self.ctrl)
         if options.subset:
             inventory_manager.subset(options.subset)
         sudopass = None
@@ -179,8 +179,8 @@ class AnsibleCmd(object):
 class AnsiblePlaybookCmd(object):
     """Run Ansible playbook"""
 
-    def __init__(self, aws):
-        self.aws = aws
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
 
     def __call__(self, argv, help):
         inject_ansible_paths()
@@ -189,7 +189,7 @@ class AnsiblePlaybookCmd(object):
         from ansible import __version__
         from ansible import errors
         from ansible import callbacks
-        from mr.awsome_ansible.inventory import Inventory
+        from ploy_ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
 
@@ -201,7 +201,7 @@ class AnsiblePlaybookCmd(object):
             subset_opts=True,
             check_opts=True,
             diff_opts=True,
-            usage='%s playbook playbook.yml' % self.aws.progname
+            usage='%s playbook playbook.yml' % self.ctrl.progname
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
@@ -266,8 +266,8 @@ class AnsiblePlaybookCmd(object):
             return "%-26s" % host
 
         try:
-            patch_connect(self.aws)
-            inventory = Inventory(self.aws)
+            patch_connect(self.ctrl)
+            inventory = Inventory(self.ctrl)
             sudopass = None
             su_pass = None
             vault_pass = None
@@ -481,20 +481,20 @@ class AnsiblePlaybookCmd(object):
 
 class AnsibleConfigureCmd(object):
 
-    def __init__(self, aws):
-        self.aws = aws
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
 
     def get_completion(self):
         instances = set()
-        for instance in self.aws.instances:
-            if self.aws.instances[instance].has_playbook():
+        for instance in self.ctrl.instances:
+            if self.ctrl.instances[instance].has_playbook():
                 instances.add(instance)
         return instances
 
     def __call__(self, argv, help):
         """Configure an instance (ansible playbook run) after it has been started."""
         parser = argparse.ArgumentParser(
-            prog="%s configure" % self.aws.progname,
+            prog="%s configure" % self.ctrl.progname,
             description=help,
             add_help=False,
         )
@@ -514,7 +514,7 @@ class AnsibleConfigureCmd(object):
             help="Name of the instance from the config.",
             choices=self.get_completion())
         args = parser.parse_args(argv)
-        instance = self.aws.instances[args.instance[0]]
+        instance = self.ctrl.instances[args.instance[0]]
         only_tags = args.only_tags.split(",")
         skip_tags = args.skip_tags
         if skip_tags is not None:
@@ -526,25 +526,25 @@ class AnsibleConfigureCmd(object):
         instance.hooks.after_ansible_configure(instance)
 
 
-def connect_patch_factory(aws):
+def connect_patch_factory(ctrl):
     def connect_patch(self, host, port, user, password, transport, private_key_file):
-        self.runner._awsome_aws = aws
-        return self._awsome_orig_connect(host, port, user, password, transport, private_key_file)
+        self.runner._ploy_ctrl = ctrl
+        return self._ploy_orig_connect(host, port, user, password, transport, private_key_file)
     return connect_patch
 
 
-def patch_connect(aws):
+def patch_connect(ctrl):
     import pkg_resources
     from ansible.utils import plugins
     path = os.path.dirname(
         pkg_resources.resource_filename(
-            'mr.awsome_ansible',
+            'ploy_ansible',
             'execnet_connection.py'))
     plugins.connection_loader.add_directory(path)
     from ansible.runner.connection import Connection
-    if not hasattr(Connection, '_awsome_orig_connect'):
-        Connection._awsome_orig_connect = Connection.connect
-        Connection.connect = connect_patch_factory(aws)
+    if not hasattr(Connection, '_ploy_orig_connect'):
+        Connection._ploy_orig_connect = Connection.connect
+        Connection.connect = connect_patch_factory(ctrl)
 
 
 def has_playbook(self):
@@ -565,7 +565,7 @@ def get_playbook(self, *args, **kwargs):
     import ansible.callbacks
     import ansible.errors
     import ansible.utils
-    from mr.awsome_ansible.inventory import Inventory
+    from ploy_ansible.inventory import Inventory
 
     host = self.id
     user = self.config.get('user', 'root')
@@ -592,7 +592,7 @@ def get_playbook(self, *args, **kwargs):
                     'roles': self.roles}],
                 [playbooks_directory])
 
-    patch_connect(self.master.aws)
+    patch_connect(self.master.ctrl)
     playbook = kwargs.pop('playbook', None)
     if playbook is None:
         playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.id)
@@ -613,7 +613,7 @@ def get_playbook(self, *args, **kwargs):
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
     runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
-    inventory = Inventory(self.master.aws)
+    inventory = Inventory(self.master.ctrl)
     skip_host_check = kwargs.pop('skip_host_check', False)
     if roles is None:
         kwargs['playbook'] = playbook
@@ -661,8 +661,8 @@ def configure(self, *args, **kwargs):
 
 
 def get_ansible_variables(self):
-    from mr.awsome_ansible.inventory import Inventory
-    inventory = Inventory(self.master.aws)
+    from ploy_ansible.inventory import Inventory
+    inventory = Inventory(self.master.ctrl)
     return inventory.get_variables(self.id)
 
 
@@ -679,15 +679,15 @@ def augment_instance(instance):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
 
 
-def get_commands(aws):
+def get_commands(ctrl):
     return [
-        ('ansible', AnsibleCmd(aws)),
-        ('playbook', AnsiblePlaybookCmd(aws)),
-        ('configure', AnsibleConfigureCmd(aws))]
+        ('ansible', AnsibleCmd(ctrl)),
+        ('playbook', AnsiblePlaybookCmd(ctrl)),
+        ('configure', AnsibleConfigureCmd(ctrl))]
 
 
 def get_massagers():
-    from mr.awsome.config import PathMassager
+    from ploy.config import PathMassager
     return [
         PathMassager('ansible', 'playbooks-directory'),
         PathMassager('global', 'playbooks-directory')]
