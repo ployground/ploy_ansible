@@ -489,7 +489,7 @@ class AnsibleConfigureCmd(object):
         for instance in self.ctrl.instances:
             if self.ctrl.instances[instance].has_playbook():
                 instances.add(instance)
-        return instances
+        return sorted(instances)
 
     def __call__(self, argv, help):
         """Configure an instance (ansible playbook run) after it has been started."""
@@ -549,7 +549,7 @@ def patch_connect(ctrl):
 
 def has_playbook(self):
     playbooks_directory = get_playbooks_directory(self.master.main_config)
-    playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.id)
+    playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
     if os.path.exists(playbook_path):
         return True
     if 'playbook' in self.config:
@@ -567,7 +567,7 @@ def get_playbook(self, *args, **kwargs):
     import ansible.utils
     from ploy_ansible.inventory import Inventory
 
-    host = self.id
+    host = self.uid
     user = self.config.get('user', 'root')
     playbooks_directory = get_playbooks_directory(self.master.main_config)
 
@@ -595,12 +595,12 @@ def get_playbook(self, *args, **kwargs):
     patch_connect(self.master.ctrl)
     playbook = kwargs.pop('playbook', None)
     if playbook is None:
-        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.id)
+        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
         if os.path.exists(playbook_path):
             playbook = playbook_path
         if 'playbook' in self.config:
             if playbook is not None and playbook != self.config['playbook']:
-                log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.id, playbook, self.config['playbook']))
+                log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))
             playbook = self.config['playbook']
     if playbook is not None:
         log.info("Using playbook at '%s'." % playbook)
@@ -608,7 +608,7 @@ def get_playbook(self, *args, **kwargs):
     if roles is None and 'roles' in self.config:
         roles = self.config['roles']
     if roles is not None and playbook is not None:
-        log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.id)
+        log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.config_id)
         sys.exit(1)
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
@@ -637,11 +637,11 @@ def get_playbook(self, *args, **kwargs):
             hosts = play_ds.get('hosts', '')
             if isinstance(hosts, basestring):
                 hosts = hosts.split(':')
-            if self.id not in hosts:
-                log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.id, ','.join(hosts), playbook)
-                if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.id)):
+            if self.uid not in hosts:
+                log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.uid, ','.join(hosts), playbook)
+                if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.uid)):
                     sys.exit(1)
-        play_ds['hosts'] = [self.id]
+        play_ds['hosts'] = [self.uid]
     return pb
 
 
@@ -663,7 +663,7 @@ def configure(self, *args, **kwargs):
 def get_ansible_variables(self):
     from ploy_ansible.inventory import Inventory
     inventory = Inventory(self.master.ctrl)
-    return inventory.get_variables(self.id)
+    return inventory.get_variables(self.uid)
 
 
 def augment_instance(instance):

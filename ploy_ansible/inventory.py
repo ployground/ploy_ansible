@@ -16,7 +16,7 @@ class Inventory(BaseInventory):
         groups = {}
         groups['all'] = self.get_group('all')
         for instance in self.ctrl.instances.values():
-            h = Host(instance.id)
+            h = Host(instance.uid)
             add_to = ['all', '%ss' % instance.sectiongroupname]
             if hasattr(instance, 'master'):
                 master = instance.master

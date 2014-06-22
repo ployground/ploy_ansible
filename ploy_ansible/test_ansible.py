@@ -52,7 +52,7 @@ def test_configure_with_missing_yml(ctrl):
 
 
 def test_configure_with_empty_yml(ctrl, tempdir):
-    tempdir['foo.yml'].fill('')
+    tempdir['default-foo.yml'].fill('')
     with patch('ploy_ansible.log') as LogMock:
         with pytest.raises(SystemExit):
             ctrl(['./bin/ploy', 'configure', 'foo'])
@@ -62,7 +62,7 @@ def test_configure_with_empty_yml(ctrl, tempdir):
 
 
 def test_configure_asks_when_no_host_in_yml(ctrl, tempdir):
-    yml = tempdir['foo.yml']
+    yml = tempdir['default-foo.yml']
     yml.fill([
         '---',
         '- {}'])
@@ -72,13 +72,13 @@ def test_configure_asks_when_no_host_in_yml(ctrl, tempdir):
             ctrl(['./bin/ploy', 'configure', 'foo'])
     assert len(YesNoMock.call_args_list) == 1
     call_args = YesNoMock.call_args_list[0][0]
-    assert "Do you really want to apply '%s' to the host '%s'?" % (yml.path, 'foo') in call_args[0]
+    assert "Do you really want to apply '%s' to the host '%s'?" % (yml.path, 'default-foo') in call_args[0]
 
 
 def test_configure(ctrl, monkeypatch, tempdir):
-    tempdir['foo.yml'].fill([
+    tempdir['default-foo.yml'].fill([
         '---',
-        '- hosts: foo'])
+        '- hosts: default-foo'])
     runmock = MagicMock()
     monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
     ctrl(['./bin/ploy', 'configure', 'foo'])
@@ -87,10 +87,10 @@ def test_configure(ctrl, monkeypatch, tempdir):
 
 def test_configure_playbook_option(ctrl, ployconf, tempdir):
     import ansible.playbook
-    yml = tempdir['bar.yml']
+    yml = tempdir['default-bar.yml']
     yml.fill([
         '---',
-        '- hosts: foo'])
+        '- hosts: default-foo'])
     ployconf.fill([
         '[dummy-instance:foo]',
         'playbook = %s' % yml.path])
@@ -102,12 +102,12 @@ def test_configure_playbook_option(ctrl, ployconf, tempdir):
 
 def test_configure_playbook_option_shadowing(ctrl, ployconf, caplog, tempdir):
     import ansible.playbook
-    yml_foo = tempdir['foo.yml']
+    yml_foo = tempdir['default-foo.yml']
     yml_foo.fill('')
-    yml_bar = tempdir['bar.yml']
+    yml_bar = tempdir['default-bar.yml']
     yml_bar.fill([
         '---',
-        '- hosts: foo'])
+        '- hosts: default-foo'])
     ployconf.fill([
         '[dummy-instance:foo]',
         'playbook = %s' % yml_bar.path])
@@ -116,7 +116,7 @@ def test_configure_playbook_option_shadowing(ctrl, ployconf, caplog, tempdir):
     assert runmock.called
     assert runmock.call_args[0][0].filename == yml_bar.path
     assert [x.message for x in caplog.records()] == [
-        "Instance 'foo' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (yml_foo.path, yml_bar.path),
+        "Instance 'dummy-instance:foo' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (yml_foo.path, yml_bar.path),
         "Using playbook at '%s'." % yml_bar.path]
 
 
@@ -129,12 +129,12 @@ def test_configure_roles_option(ctrl, ployconf, tempdir):
         ctrl(['./bin/ploy', 'configure', 'foo'])
     assert runmock.called
     assert runmock.call_args[0][0].filename == "<dynamically generated from ['ham', 'egg']>"
-    assert runmock.call_args[0][0].playbook == [{'hosts': ['foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
+    assert runmock.call_args[0][0].playbook == [{'hosts': ['default-foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
     assert runmock.call_args[0][0].play_basedirs == [tempdir.directory]
 
 
 def test_configure_roles_default_playbook_conflict(ctrl, ployconf, caplog, tempdir):
-    yml = tempdir['foo.yml']
+    yml = tempdir['default-foo.yml']
     yml.fill('')
     ployconf.fill([
         '[dummy-instance:foo]',
@@ -143,14 +143,14 @@ def test_configure_roles_default_playbook_conflict(ctrl, ployconf, caplog, tempd
         ctrl(['./bin/ploy', 'configure', 'foo'])
     assert [x.message for x in caplog.records()] == [
         "Using playbook at '%s'." % yml.path,
-        "You can't use a playbook and the 'roles' options at the same time for instance 'foo'."]
+        "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
 
 
 def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdir):
-    yml = tempdir['bar.yml']
+    yml = tempdir['default-bar.yml']
     yml.fill([
         '---',
-        '- hosts: foo'])
+        '- hosts: default-foo'])
     ployconf.fill([
         '[dummy-instance:foo]',
         'playbook = %s' % yml.path,
@@ -159,7 +159,7 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
         ctrl(['./bin/ploy', 'configure', 'foo'])
     assert [x.message for x in caplog.records()] == [
         "Using playbook at '%s'." % yml.path,
-        "You can't use a playbook and the 'roles' options at the same time for instance 'foo'."]
+        "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
 
 
 def test_playbook_without_args(ctrl):
@@ -235,7 +235,7 @@ def test_ansible(ctrl, monkeypatch):
     runmock.return_value = dict(
         contacted=dict(),
         dark=[])
-    ctrl(['./bin/ploy', 'ansible', 'foo', '-a', 'ls'])
+    ctrl(['./bin/ploy', 'ansible', 'default-foo', '-a', 'ls'])
     assert runmock.called
 
 
@@ -253,7 +253,7 @@ def test_execnet_connection(ctrl, monkeypatch):
         None,
         (0, '{}', '')]
     monkeypatch.setattr("sys.stdin", tempfile.TemporaryFile())
-    ctrl(['./bin/ploy', 'ansible', 'foo', '-a', 'ls'])
+    ctrl(['./bin/ploy', 'ansible', 'default-foo', '-a', 'ls'])
     assert [x[0][0][0] for x in channel_mock.send.call_args_list] == [
         'exec_command', 'put_file', 'exec_command']
     assert [x[0][0][2] for x in channel_mock.send.call_args_list] == [

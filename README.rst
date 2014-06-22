@@ -4,6 +4,9 @@ Changelog
 1.0b6 - unreleased
 ------------------
 
+* Use unique instance id to avoid issues.
+  [fschulze]
+
 * Renamed mr.awsome to ploy and mr.awsome.ansible to ploy_ansible.
   [fschulze]
 
