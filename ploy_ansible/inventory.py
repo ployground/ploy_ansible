@@ -15,7 +15,11 @@ class Inventory(BaseInventory):
         self.set_playbook_basedir(get_playbooks_directory(ctrl.config))
         groups = {}
         groups['all'] = self.get_group('all')
+        seen = set()
         for instance in self.ctrl.instances.values():
+            if instance.uid in seen:
+                continue
+            seen.add(instance.uid)
             h = Host(instance.uid)
             add_to = ['all', '%ss' % instance.sectiongroupname]
             if hasattr(instance, 'master'):
