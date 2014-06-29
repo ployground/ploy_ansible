@@ -474,7 +474,7 @@ class AnsiblePlaybookCmd(object):
                     sys.exit(2)
                 if len(unreachable_hosts) > 0:
                     sys.exit(3)
-        except errors.AnsibleError, e:
+        except errors.AnsibleError as e:
             callbacks.display("ERROR: %s" % e, color='red', stderr=True)
             sys.exit(1)
 
