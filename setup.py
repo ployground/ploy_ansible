@@ -16,6 +16,7 @@ setup(
     name="ploy_ansible",
     author='Florian Schulze',
     author_email='florian.schulze@gmx.net',
+    license="GPLv3",  # infected by code for ansible and playbook commands
     url='http://github.com/ployground/ploy_ansible',
     include_package_data=True,
     zip_safe=False,
