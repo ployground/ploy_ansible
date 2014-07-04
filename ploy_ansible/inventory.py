@@ -3,6 +3,22 @@ from ansible.inventory import Group
 from ansible.inventory import Host
 from ansible.inventory import Inventory as BaseInventory
 from ansible.inventory.vars_plugins.group_vars import VarsModule
+import inspect
+import logging
+
+
+log = logging.getLogger('ploy_ansible.inventory')
+
+
+class PloyInventoryDict(dict):
+    def __getitem__(self, name):
+        if name.startswith('awsome_'):
+            caller_frame = inspect.currentframe().f_back
+            info = inspect.getframeinfo(caller_frame)
+            new_name = "ploy_%s" % name[7:]
+            log.warning("Use of deprecated variable name '%s', use '%s' instead.\n%s:%s\n%s" % (
+                name, new_name, info.filename, info.lineno, ''.join(info.code_context)))
+        return dict.__getitem__(self, name)
 
 
 class Inventory(BaseInventory):
@@ -55,7 +71,8 @@ class Inventory(BaseInventory):
                 result[k[len('ansible-'):].replace('-', '_')] = v
             else:
                 result['ploy_%s' % k.replace('-', '_')] = v
-        vars = {}
+                result['awsome_%s' % k.replace('-', '_')] = v
+        vars = PloyInventoryDict()
         for plugin in self.ctrl.plugins.values():
             if 'get_ansible_vars' not in plugin:
                 continue
