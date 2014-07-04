@@ -18,6 +18,14 @@ setup(
     author_email='florian.schulze@gmx.net',
     license="GPLv3",  # infected by code for ansible and playbook commands
     url='http://github.com/ployground/ploy_ansible',
+    classifiers=[
+        'Environment :: Console',
+        'Intended Audience :: System Administrators',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2 :: Only',
+        'Topic :: System :: Installation/Setup',
+        'Topic :: System :: Systems Administration'],
     include_package_data=True,
     zip_safe=False,
     packages=['ploy_ansible'],
