@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.0b6 - unreleased
+1.0b6 - 2014-07-04
 ------------------
 
 * Use unique instance id to avoid issues.
