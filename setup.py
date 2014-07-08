@@ -11,7 +11,7 @@ version = "1.0b7"
 
 setup(
     version=version,
-    description="A plugin for ploy providing integration with Ansible.",
+    description="Plugin to integrate Ansible with ploy.",
     long_description=README + "\n\n",
     name="ploy_ansible",
     author='Florian Schulze',
