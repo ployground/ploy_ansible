@@ -31,7 +31,7 @@ setup(
     packages=['ploy_ansible'],
     install_requires=[
         'setuptools',
-        'ploy >= 1.0rc9',
+        'ploy >= 1.0rc13',
         'execnet'
     ],
     entry_points="""
