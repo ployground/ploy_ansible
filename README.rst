@@ -4,6 +4,8 @@ Changelog
 1.0b8 - Unreleased
 ------------------
 
+* Add ansible as dependency if it can't be imported already.
+  [fschulze]
 
 
 1.0b7 - 2014-07-08

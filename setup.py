@@ -9,6 +9,20 @@ README = open(os.path.join(here, 'README.rst')).read()
 version = "1.0b8"
 
 
+install_requires = [
+    'setuptools',
+    'ploy >= 1.0rc13',
+    'execnet']
+
+
+# workaround for installing via buildout, as ansible
+# violates its sandbox limitations
+try:
+    import ansible  # noqa
+except ImportError:
+    install_requires.append('ansible')
+
+
 setup(
     version=version,
     description="Plugin to integrate Ansible with ploy.",
@@ -29,11 +43,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     packages=['ploy_ansible'],
-    install_requires=[
-        'setuptools',
-        'ploy >= 1.0rc13',
-        'execnet'
-    ],
+    install_requires=install_requires,
     entry_points="""
         [ploy.plugins]
         ansible = ploy_ansible:plugin
