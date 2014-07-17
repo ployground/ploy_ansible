@@ -12,7 +12,7 @@ It automatically builds an `inventory`_ and provides a custom connection plugin.
 Installation
 ============
 
-ploy is best installed with easy_install, pip or with zc.recipe.egg in a buildout.
+ploy_ansible is best installed with easy_install, pip or with zc.recipe.egg in a buildout.
 
 Once installed, it's functionality is immediately usable with ploy.
 
