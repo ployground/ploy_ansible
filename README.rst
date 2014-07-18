@@ -5,7 +5,7 @@ The ploy_ansible plugin provides integration of `Ansible`_ with `ploy`_.
 It automatically builds an `inventory`_ and provides a custom connection plugin.
 
 .. _Ansible: http://docs.ansible.com
-.. _ploy: https://github.com/ployground/
+.. _ploy: https://github.com/ployground/ploy
 .. _inventory: http://docs.ansible.com/intro_inventory.html
 
 
@@ -13,8 +13,6 @@ Installation
 ============
 
 ploy_ansible is best installed with easy_install, pip or with zc.recipe.egg in a buildout.
-
-Once installed, it's functionality is immediately usable with ploy.
 
 
 Commands
@@ -69,6 +67,7 @@ By default it is set to the parent directory of the directory the ``ploy.conf`` 
     |-- etc
       |-- ploy.conf
 
+
 Per instance
 ------------
 
@@ -80,9 +79,9 @@ Per instance
 ``playbook``
   Allows you to explicitly specify a playbook to use for this instance.
 
-Any option starting with ``ansible_`` is given to Ansible as is. This can be used for settings like ``ansible_python_interpreter``.
+Any option starting with ``ansible_`` is passed through to Ansible as is. This can be used for settings like ``ansible_python_interpreter``.
 
-Every option starting with ``ansible-`` is stripped of the ``ansible-`` prefix and given to Ansible.
+Any option starting with ``ansible-`` is stripped of the ``ansible-`` prefix and then passed through to Ansible.
 This is the main way to set Ansible variables for use in playbooks and roles.
 
 All other options are prefixed with ``ploy_`` and made available to Ansible.
@@ -96,16 +95,16 @@ All instances in ``ploy.conf`` are available to Ansible via their **unique id**.
 The variables for each instance are gathered from ``group_vars``, ``host_vars`` and the ``ploy.conf``.
 
 
-Instance methods
-================
+API usage
+=========
 
-For the Python side, each instance gains the following methods:
+On the Python side, each ploy instance gains the following methods:
 
 ``apply_playbook(self, playbook, *args, **kwargs)``
   Applies the ``playbook`` to the instance.
 
 ``has_playbook``
-  Return ``True`` if the instance has the ``roles`` option or a playbook set.
+  Return ``True`` if the instance has either of the ``roles`` or a playbook option set.
 
 ``get_playbook(*args, **kwargs)``
   Returns an instance of the Ansible internal ``PlayBook`` class.
@@ -117,6 +116,8 @@ For the Python side, each instance gains the following methods:
 ``get_ansible_variables``
   Returns the Ansible variables from the inventory.
   This does not include *facts*, as it doesn't connect to the instance.
+  This is particularly useful in Fabric scripts.
+
 
 
 Changelog
