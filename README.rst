@@ -111,7 +111,7 @@ For the Python side, each instance gains the following methods:
   Returns an instance of the Ansible internal ``PlayBook`` class.
   This is either from a file (from ``playbook`` option or the playbook kwarg), or dynamically generated from the ``roles`` option.
 
-``configure``
+``configure(*args, **kwargs)``
   Configures the instance with the same semantics as the ``configure`` command.
 
 ``get_ansible_variables``
