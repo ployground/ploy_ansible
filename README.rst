@@ -5,7 +5,7 @@ The ploy_ansible plugin provides integration of `Ansible`_ with `ploy`_.
 It automatically builds an `inventory`_ and provides a custom connection plugin.
 
 .. _Ansible: http://docs.ansible.com
-.. _ploy: https://github.com/ployground/ploy
+.. _ploy: https://github.com/ployground
 .. _inventory: http://docs.ansible.com/intro_inventory.html
 
 
@@ -123,7 +123,7 @@ On the Python side, each ploy instance gains the following methods:
 Changelog
 =========
 
-1.0b9 - Unreleased
+1.0.0 - 2014-07-19
 ------------------
 
 * Added documentation.
