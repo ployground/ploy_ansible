@@ -1,5 +1,6 @@
 from ansible import errors
 from ansible import utils
+from ansible.callbacks import vvv
 from ploy_ansible import remote
 import execnet
 import os
@@ -61,7 +62,10 @@ class Connection(object):
             except instance.paramiko.SSHException as e:
                 raise errors.AnsibleError("Couldn't validate fingerprint for '%s': %s" % (instance.config_id, e))
             spec = execnet.XSpec('ssh')
-            spec.ssh = SSHArgs(instance.ssh_args_from_info(ssh_info))
+            ssh_args = instance.ssh_args_from_info(ssh_info)
+            if utils.VERBOSITY > 3:
+                ssh_args += ["-vvv"]
+            spec.ssh = SSHArgs(ssh_args)
             vars = self.runner.inventory.get_variables(self.host)
             spec.python = vars.get('ansible_python_interpreter', 'python')
             gw = execnet.makegateway(spec)
@@ -87,16 +91,19 @@ class Connection(object):
             sudocmd, prompt, success_key = utils.make_sudo_cmd(sudo_user, executable, cmd)
             remote_cmd.append(sudocmd)
         remote_cmd = ' '.join(remote_cmd)
+        vvv("execnet exec_command %r" % remote_cmd)
         rc, stdout, stderr = self.rpc.exec_command(remote_cmd)
         return (rc, '', stdout, stderr)
 
     def put_file(self, in_path, out_path):
+        vvv("execnet put_file %r %r" % (in_path, out_path))
         if not os.path.exists(in_path):
             raise errors.AnsibleFileNotFound("file or module does not exist: %s" % in_path)
         with open(in_path) as f:
             self.rpc.put_file(f.read(), out_path)
 
     def fetch_file(self, in_path, out_path):
+        vvv("execnet fetch_file %r %r" % (in_path, out_path))
         data = self.rpc.fetch_file(in_path)
         with os.path.open(out_path, 'w') as f:
             f.write(data)

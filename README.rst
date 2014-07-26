@@ -126,6 +126,8 @@ Changelog
 1.0.1 - Unreleased
 ------------------
 
+* Add verbosity argument to ``configure`` command.
+  [fschulze]
 
 
 1.0.0 - 2014-07-19

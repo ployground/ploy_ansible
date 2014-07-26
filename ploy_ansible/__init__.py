@@ -499,6 +499,9 @@ class AnsibleConfigureCmd(object):
             add_help=False,
         )
         parser.add_argument(
+            '-v', '--verbose', default=False, action="count",
+            help="verbose mode (-vvv for more, -vvvv to enable connection debugging)")
+        parser.add_argument(
             '-t', '--tags',
             dest='only_tags',
             default='all',
@@ -522,7 +525,8 @@ class AnsibleConfigureCmd(object):
         instance.hooks.before_ansible_configure(instance)
         instance.configure(
             only_tags=only_tags,
-            skip_tags=skip_tags)
+            skip_tags=skip_tags,
+            verbosity=args.verbose)
         instance.hooks.after_ansible_configure(instance)
 
 
@@ -650,14 +654,20 @@ def apply_playbook(self, playbook, *args, **kwargs):
 
 
 def configure(self, *args, **kwargs):
+    verbosity = kwargs.pop('verbosity', 0)
     pb = self.get_playbook(*args, **kwargs)
     # we have to wait importing ansible until after get_playbook ran, so the import order is correct
     import ansible.errors
+    import ansible.utils
+    VERBOSITY = ansible.utils.VERBOSITY
+    ansible.utils.VERBOSITY = verbosity
     try:
         pb.run()
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
+    finally:
+        ansible.utils.VERBOSITY = VERBOSITY
 
 
 def get_ansible_variables(self):
