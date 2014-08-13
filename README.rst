@@ -123,6 +123,11 @@ On the Python side, each ploy instance gains the following methods:
 Changelog
 =========
 
+1.1.1 - Unreleased
+------------------
+
+
+
 1.1.0 - 2014-08-13
 ------------------
 
