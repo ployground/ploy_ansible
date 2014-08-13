@@ -1,8 +1,8 @@
 from ansible import errors
+from ansible import utils
 from ansible.inventory import Group
 from ansible.inventory import Host
 from ansible.inventory import Inventory as BaseInventory
-from ansible.inventory.vars_plugins.group_vars import VarsModule
 import inspect
 import logging
 
@@ -53,8 +53,7 @@ class Inventory(BaseInventory):
                         self.add_group(g)
                     groups[group] = g
                 g.add_host(h)
-        self._vars_plugins = []
-        self._vars_plugins.append(VarsModule(self))
+        self._vars_plugins = [x for x in utils.plugins.vars_loader.all(self)]
 
     def _get_variables(self, hostname, **kwargs):
         host = self.get_host(hostname)
@@ -72,14 +71,23 @@ class Inventory(BaseInventory):
             else:
                 result['ploy_%s' % k.replace('-', '_')] = v
                 result['awsome_%s' % k.replace('-', '_')] = v
-        vars = PloyInventoryDict()
+        vars = {}
         for plugin in self.ctrl.plugins.values():
             if 'get_ansible_vars' not in plugin:
                 continue
-            vars.update(plugin['get_ansible_vars'](instance))
-        vars_results = [plugin.run(host) for plugin in self._vars_plugins]
+            vars = utils.combine_vars(vars, plugin['get_ansible_vars'](instance))
+        vars_results = [plugin.run(host) for plugin in self._vars_plugins if hasattr(plugin, 'run')]
         for updated in vars_results:
             if updated is not None:
-                vars.update(updated)
-        vars.update(result)
-        return vars
+                vars = utils.combine_vars(vars, updated)
+        vars_results = [plugin.get_host_vars(host) for plugin in self._vars_plugins if hasattr(plugin, 'get_host_vars')]
+        for updated in vars_results:
+            if updated is not None:
+                vars = utils.combine_vars(vars, updated)
+        vars = utils.combine_vars(vars, host.get_variables())
+        if self.parser is not None:
+            vars = utils.combine_vars(vars, self.parser.get_host_variables(host))
+        if hasattr(self, 'get_host_vars'):
+            vars = utils.combine_vars(vars, self.get_host_vars(host))
+        vars = utils.combine_vars(vars, result)
+        return PloyInventoryDict(vars)

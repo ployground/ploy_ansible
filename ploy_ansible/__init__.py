@@ -545,10 +545,13 @@ def patch_connect(ctrl):
             'ploy_ansible',
             'execnet_connection.py'))
     plugins.connection_loader.add_directory(path)
-    from ansible.runner.connection import Connection
-    if not hasattr(Connection, '_ploy_orig_connect'):
-        Connection._ploy_orig_connect = Connection.connect
-        Connection.connect = connect_patch_factory(ctrl)
+    try:
+        from ansible.runner.connection import Connector
+    except ImportError:
+        from ansible.runner.connection import Connection as Connector
+    if not hasattr(Connector, '_ploy_orig_connect'):
+        Connector._ploy_orig_connect = Connector.connect
+        Connector.connect = connect_patch_factory(ctrl)
 
 
 def has_playbook(self):

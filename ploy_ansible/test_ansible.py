@@ -1,5 +1,4 @@
 from mock import MagicMock, patch
-import logging
 import pytest
 
 
@@ -9,27 +8,6 @@ def test_register_ansible_module_path():
 
 def test_register_ansible_module_path_from_multiple_entry_points():
     pass
-
-
-@pytest.fixture
-def ctrl(ployconf):
-    from ploy import Controller
-    import ploy_ansible
-    import ploy.tests.dummy_plugin
-    ployconf.fill([
-        '[dummy-instance:foo]'])
-    ctrl = Controller(configpath=ployconf.directory)
-    ctrl.plugins = {
-        'dummy': ploy.tests.dummy_plugin.plugin,
-        'ansible': ploy_ansible.plugin}
-    return ctrl
-
-
-def caplog_messages(caplog, level=logging.INFO):
-    return [
-        x.message
-        for x in caplog.records()
-        if x.levelno >= level]
 
 
 def test_configure_without_args(ctrl):
@@ -245,26 +223,6 @@ def test_ansible(ctrl, monkeypatch):
         dark=[])
     ctrl(['./bin/ploy', 'ansible', 'default-foo', '-a', 'ls'])
     assert runmock.called
-
-
-def test_inventory_deprecation(caplog, ctrl, ployconf):
-    from ploy_ansible.inventory import Inventory
-    ctrl.configfile = ployconf.path
-    ployconf.fill([
-        '[dummy-instance:foo]',
-        'test = 1'])
-    inventory = Inventory(ctrl)
-    variables = inventory.get_variables('default-foo')
-    assert caplog_messages(caplog) == []
-    assert variables['ploy_test']
-    assert caplog_messages(caplog) == []
-    assert variables['awsome_test']
-    msg, = caplog_messages(caplog)
-    lines = msg.splitlines()
-    assert lines[0] == "Use of deprecated variable name 'awsome_test', use 'ploy_test' instead."
-    parts = lines[1].rsplit(':', 1)
-    assert parts[0].endswith("ploy_ansible/test_ansible.py")
-    assert lines[2] == "    assert variables['awsome_test']"
 
 
 def test_execnet_connection(ctrl, monkeypatch):

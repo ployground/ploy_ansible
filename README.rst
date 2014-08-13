@@ -123,8 +123,11 @@ On the Python side, each ploy instance gains the following methods:
 Changelog
 =========
 
-1.0.1 - Unreleased
+1.1.0 - Unreleased
 ------------------
+
+* Test and fixes for changes in ansible 1.7.
+  [fschulze]
 
 * Add verbosity argument to ``configure`` command.
   [fschulze]
