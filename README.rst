@@ -123,7 +123,7 @@ On the Python side, each ploy instance gains the following methods:
 Changelog
 =========
 
-1.1.0 - Unreleased
+1.1.0 - 2014-08-13
 ------------------
 
 * Test and fixes for changes in ansible 1.7.
