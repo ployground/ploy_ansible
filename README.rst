@@ -35,12 +35,22 @@ The plugin adds the following commands to ploy.
   Applies a playbook.
   This basically reflects the ``ansible-playbook`` script of Ansible.
 
+``vault``
+  Manages file encryption.
+  This basically reflects the ``ansible-vault`` script of Ansible, but handles the encryption key source via ``ploy.conf``.
+
+``vault-key``
+  Manages the vault key.
+
 
 Options
 =======
 
 Global
 ------
+
+ploybooks-directory
+~~~~~~~~~~~~~~~~~~~
 
 The ``playbooks-directory`` option of the ``ansible`` section allows you to specify the directory where playbooks, roles, host_vars etc are looked up.
 If you specify a relative path, then it's always relative to the ``ploy.conf`` directory.
@@ -66,6 +76,33 @@ By default it is set to the parent directory of the directory the ``ploy.conf`` 
     |-- host_vars
     |-- etc
       |-- ploy.conf
+
+
+vault-password-source
+~~~~~~~~~~~~~~~~~~~~~
+
+The ``vault-password-source`` option allows you to set where the encryption key for the Ansible vault comes from.
+
+You specify the kind of source separated by a colon from the id you want to use.
+
+The id must be unique among all people who have to use the feature, as it is used as an identifier in their keychain.
+If in doubt, use a speaking prefix and add a guid by running ``python -c "import uuid; print(uuid.uuid4().hex)"``.
+
+These sources are supported:
+
+``keyring``
+  Use the `keyring <https://pypi.python.org/pypi/keyring/4.0/>`_ library to store the key.
+
+If you want to rekey your files, you have to put the old id into the ``vault-password-old-source`` option and set a new id in ``vault-password-source``.
+Just incrementing a number or appending a new guid is best.
+
+Example:
+
+.. code-block:: ini
+
+    [ansible]
+    vault-password-old-source = keyring:my-domain-deployment-0da2c8296f744c90a236721486dbd258
+    vault-password-source = keyring:my-domain-deployment-042a98b666ec4e4e8e06de7d42688f3b
 
 
 Per instance
@@ -118,14 +155,19 @@ On the Python side, each ploy instance gains the following methods:
   This does not include *facts*, as it doesn't connect to the instance.
   This is particularly useful in Fabric scripts.
 
+``get_vault_lib``
+  Returns a readily usable Ansible VaultLib class.
+  Use the ``encrypt`` and ``decrypt`` methods do encrypt/decrypt strings.
 
 
 Changelog
 =========
 
-1.1.1 - Unreleased
+1.2.0 - Unreleased
 ------------------
 
+* Support Ansible vault with safe key storage.
+  [fschulze]
 
 
 1.1.0 - 2014-08-13

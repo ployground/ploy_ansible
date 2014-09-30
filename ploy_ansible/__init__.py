@@ -33,6 +33,66 @@ def get_playbooks_directory(main_config):
     return ansible_config.get('playbooks-directory', default)
 
 
+class NullSource:
+    def get(self):
+        return
+
+    def set(self, key):
+        log.error("No vault password source set.")
+        sys.exit(1)
+
+    def delete(self):
+        log.error("No vault password source set.")
+        sys.exit(1)
+
+
+class KeyringSource:
+    def __init__(self, id):
+        try:
+            import keyring
+        except ImportError:
+            log.error("Couldn't import 'keyring' library.")
+            sys.exit(1)
+        self.keyring = keyring
+        if not id:
+            log.error("No unique id for vault password in keyring secified.")
+            sys.exit(1)
+        self.id = id
+
+    def get(self):
+        result = self.keyring.get_password("ploy_ansible", self.id)
+        if result is None:
+            log.error("No password stored in keyring for service 'ploy_ansible' with username '%s'." % self.id)
+            log.info("Use the 'vault-key' command to manage your keys.")
+            sys.exit(1)
+        return result
+
+    def set(self, key):
+        if not key:
+            log.error("You can't use an empty key.")
+            sys.exit(1)
+        self.keyring.set_password("ploy_ansible", self.id, key)
+
+    def delete(self):
+        try:
+            self.keyring.delete_password("ploy_ansible", self.id)
+        except self.keyring.errors.PasswordDeleteError as e:
+            log.error("PasswordDeleteError: %s" % e)
+            sys.exit(1)
+        log.info("Key deleted from keyring for service 'ploy_ansible' with username '%s'." % self.id)
+
+
+def get_vault_password_source(main_config, option='vault-password-source'):
+    ansible_config = main_config.get('global', {}).get('ansible', {})
+    src = ansible_config.get(option)
+    if src is None:
+        return NullSource()
+    if src.startswith('keyring:'):
+        return KeyringSource(src.split(':', 1)[1])
+    log.error("Unknown vault password source '%s'." % src)
+    sys.exit(1)
+
+
 class AnsibleCmd(object):
     """Run Ansible"""
 
@@ -495,9 +555,7 @@ class AnsibleConfigureCmd(object):
         """Configure an instance (ansible playbook run) after it has been started."""
         parser = argparse.ArgumentParser(
             prog="%s configure" % self.ctrl.progname,
-            description=help,
-            add_help=False,
-        )
+            description=help)
         parser.add_argument(
             '-v', '--verbose', default=False, action="count",
             help="verbose mode (-vvv for more, -vvvv to enable connection debugging)")
@@ -528,6 +586,129 @@ class AnsibleConfigureCmd(object):
             skip_tags=skip_tags,
             verbosity=args.verbose)
         instance.hooks.after_ansible_configure(instance)
+
+
+class AnsibleVaultKeyCmd(object):
+
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
+
+    def __call__(self, argv, help):
+        """Manage vault keys."""
+        parser = argparse.ArgumentParser(
+            prog="%s vault-key" % self.ctrl.progname,
+            description=help)
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument(
+            '-g', '--generate',
+            action="store_true",
+            help="generate a new random 32 byte vault key and store it")
+        group.add_argument(
+            '-s', '--set',
+            action="store_true",
+            help="set the vault key")
+        group.add_argument(
+            '-d', '--delete',
+            action="store_true",
+            help="delete the vault key")
+        parser.add_argument(
+            '-o', '--old',
+            action="store_true",
+            help="use 'vault-password-old-source'")
+        args = parser.parse_args(argv)
+        if args.old:
+            src = get_vault_password_source(self.ctrl.config, option='vault-password-old-source')
+        else:
+            src = get_vault_password_source(self.ctrl.config)
+        if args.generate:
+            if src.get() and not yesno("There is already a key stored, do you want to replace it?"):
+                sys.exit(1)
+            from binascii import b2a_base64
+            key = b2a_base64(os.urandom(32))
+            key = key.strip()
+            key = key.replace('+', '-')
+            key = key.replace('/', '_')
+            src.set(key)
+        elif args.set:
+            if src.get() and not yesno("There is already a key stored, do you want to replace it?"):
+                sys.exit(1)
+            import getpass
+            src.set(getpass.getpass("Password for '%s': " % src.id))
+        elif args.delete:
+            if yesno("Do you really want to delete the key for '%s'?" % src.id):
+                src.delete()
+
+
+class AnsibleVaultCmd(object):
+
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
+
+    def __call__(self, argv, help):
+        """Manage vault encrypted files."""
+        parser = argparse.ArgumentParser(
+            prog="%s vault" % self.ctrl.progname,
+            description=help)
+        subparsers = parser.add_subparsers(help="sub commands of vault command")
+        createparser = subparsers.add_parser("create", help="create an encrypted file")
+        createparser.add_argument("file", nargs=1)
+        createparser.set_defaults(func=self.cmd_create)
+        decryptparser = subparsers.add_parser("decrypt", help="decrypt encrypted files")
+        decryptparser.add_argument("file", nargs="+")
+        decryptparser.set_defaults(func=self.cmd_decrypt)
+        editparser = subparsers.add_parser("edit", help="edit an encrypted file")
+        editparser.add_argument("file", nargs=1)
+        editparser.set_defaults(func=self.cmd_edit)
+        encryptparser = subparsers.add_parser("encrypt", help="encrypt unencrypted files")
+        encryptparser.add_argument("file", nargs="+")
+        encryptparser.set_defaults(func=self.cmd_encrypt)
+        rekeyparser = subparsers.add_parser("rekey", help="rekey encrypted files")
+        rekeyparser.add_argument("file", nargs="+")
+        rekeyparser.set_defaults(func=self.cmd_rekey)
+        args = parser.parse_args(argv)
+        args.func(args)
+
+    @property
+    def ve(self):
+        inject_ansible_paths()
+        try:
+            from ansible.utils.vault import VaultEditor
+        except ImportError:
+            log.error("Your ansible installation doesn't support vaults.")
+            sys.exit(1)
+        return VaultEditor
+
+    def cmd_create(self, args):
+        password = get_vault_password_source(self.ctrl.config).get()
+        this_editor = self.ve(None, password, args.file[0])
+        this_editor.create_file()
+
+    def cmd_decrypt(self, args):
+        password = get_vault_password_source(self.ctrl.config).get()
+        for f in args.file:
+            this_editor = self.ve(None, password, f)
+            this_editor.decrypt_file()
+
+    def cmd_edit(self, args):
+        password = get_vault_password_source(self.ctrl.config).get()
+        this_editor = self.ve(None, password, args.file[0])
+        this_editor.edit_file()
+
+    def cmd_encrypt(self, args):
+        password = get_vault_password_source(self.ctrl.config).get()
+        for f in args.file:
+            this_editor = self.ve(None, password, f)
+            this_editor.encrypt_file()
+
+    def cmd_rekey(self, args):
+        old_password = get_vault_password_source(self.ctrl.config, option='vault-password-old-source').get()
+        if old_password is None:
+            log.error("You have to specify the old vault password source with the 'vault-password-old-source' option.")
+            sys.exit(1)
+        password = get_vault_password_source(self.ctrl.config).get()
+        for f in args.file:
+            this_editor = self.ve(None, old_password, f)
+            this_editor.rekey_file(password)
 
 
 def connect_patch_factory(ctrl):
@@ -572,6 +753,10 @@ def get_playbook(self, *args, **kwargs):
     import ansible.callbacks
     import ansible.errors
     import ansible.utils
+    try:
+        from ansible.utils.vault import VaultLib
+    except ImportError:
+        VaultLib = None
     from ploy_ansible.inventory import Inventory
 
     host = self.uid
@@ -626,6 +811,8 @@ def get_playbook(self, *args, **kwargs):
         kwargs['playbook'] = playbook
     else:
         kwargs['roles'] = roles
+    if VaultLib is not None:
+        kwargs['vault_password'] = get_vault_password_source(self.master.main_config).get()
     try:
         pb = PlayBook(
             *args,
@@ -679,6 +866,14 @@ def get_ansible_variables(self):
     return inventory.get_variables(self.uid)
 
 
+def get_vault_lib(self):
+    try:
+        from ansible.utils.vault import VaultLib
+    except ImportError:
+        return None
+    return VaultLib(get_vault_password_source(self.master.main_config).get())
+
+
 def augment_instance(instance):
     if not hasattr(instance, 'apply_playbook'):
         instance.apply_playbook = apply_playbook.__get__(instance, instance.__class__)
@@ -690,13 +885,17 @@ def augment_instance(instance):
         instance.configure = configure.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_vault_lib'):
+        instance.get_vault_lib = get_vault_lib.__get__(instance, instance.__class__)
 
 
 def get_commands(ctrl):
     return [
         ('ansible', AnsibleCmd(ctrl)),
         ('playbook', AnsiblePlaybookCmd(ctrl)),
-        ('configure', AnsibleConfigureCmd(ctrl))]
+        ('configure', AnsibleConfigureCmd(ctrl)),
+        ('vault', AnsibleVaultCmd(ctrl)),
+        ('vault-key', AnsibleVaultKeyCmd(ctrl))]
 
 
 def get_massagers():
