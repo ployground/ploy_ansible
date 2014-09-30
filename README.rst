@@ -49,7 +49,7 @@ Options
 Global
 ------
 
-ploybooks-directory
+playbooks-directory
 ~~~~~~~~~~~~~~~~~~~
 
 The ``playbooks-directory`` option of the ``ansible`` section allows you to specify the directory where playbooks, roles, host_vars etc are looked up.
