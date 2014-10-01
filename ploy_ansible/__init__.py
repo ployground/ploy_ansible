@@ -59,9 +59,9 @@ class KeyringSource:
             sys.exit(1)
         self.id = id
 
-    def get(self):
+    def get(self, fail_on_error=True):
         result = self.keyring.get_password("ploy_ansible", self.id)
-        if result is None:
+        if result is None and fail_on_error:
             log.error("No password stored in keyring for service 'ploy_ansible' with username '%s'." % self.id)
             log.info("Use the 'vault-key' command to manage your keys.")
             sys.exit(1)
@@ -621,7 +621,7 @@ class AnsibleVaultKeyCmd(object):
         else:
             src = get_vault_password_source(self.ctrl.config)
         if args.generate:
-            if src.get() and not yesno("There is already a key stored, do you want to replace it?"):
+            if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
                 sys.exit(1)
             from binascii import b2a_base64
             key = b2a_base64(os.urandom(32))
@@ -630,7 +630,7 @@ class AnsibleVaultKeyCmd(object):
             key = key.replace('/', '_')
             src.set(key)
         elif args.set:
-            if src.get() and not yesno("There is already a key stored, do you want to replace it?"):
+            if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
                 sys.exit(1)
             import getpass
             src.set(getpass.getpass("Password for '%s': " % src.id))
