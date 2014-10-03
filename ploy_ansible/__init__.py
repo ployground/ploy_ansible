@@ -3,6 +3,7 @@ import logging
 import pkg_resources
 import os
 import sys
+from lazy import lazy
 from ploy.common import yesno
 from os.path import pathsep
 
@@ -671,7 +672,13 @@ class AnsibleVaultCmd(object):
         args = parser.parse_args(argv)
         args.func(args)
 
-    @property
+    @lazy
+    def AnsibleError(self):
+        inject_ansible_paths()
+        from ansible.errors import AnsibleError
+        return AnsibleError
+
+    @lazy
     def ve(self):
         inject_ansible_paths()
         try:
@@ -684,24 +691,36 @@ class AnsibleVaultCmd(object):
     def cmd_create(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
         this_editor = self.ve(None, password, args.file[0])
-        this_editor.create_file()
+        try:
+            this_editor.create_file()
+        except self.AnsibleError as e:
+            log.error("%s" % e)
 
     def cmd_decrypt(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
         for f in args.file:
             this_editor = self.ve(None, password, f)
-            this_editor.decrypt_file()
+            try:
+                this_editor.decrypt_file()
+            except self.AnsibleError as e:
+                log.error("%s" % e)
 
     def cmd_edit(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
         this_editor = self.ve(None, password, args.file[0])
-        this_editor.edit_file()
+        try:
+            this_editor.edit_file()
+        except self.AnsibleError as e:
+            log.error("%s" % e)
 
     def cmd_encrypt(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
         for f in args.file:
             this_editor = self.ve(None, password, f)
-            this_editor.encrypt_file()
+            try:
+                this_editor.encrypt_file()
+            except self.AnsibleError as e:
+                log.error("%s" % e)
 
     def cmd_rekey(self, args):
         old_password = get_vault_password_source(self.ctrl.config, option='vault-password-old-source').get()
@@ -711,7 +730,10 @@ class AnsibleVaultCmd(object):
         password = get_vault_password_source(self.ctrl.config).get()
         for f in args.file:
             this_editor = self.ve(None, old_password, f)
-            this_editor.rekey_file(password)
+            try:
+                this_editor.rekey_file(password)
+            except self.AnsibleError as e:
+                log.error("%s" % e)
 
 
 def connect_patch_factory(ctrl):
