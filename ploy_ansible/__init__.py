@@ -885,10 +885,20 @@ def configure(self, *args, **kwargs):
         ansible.utils.VERBOSITY = VERBOSITY
 
 
+class AnsibleVariablesDict(dict):
+    def __getitem__(self, name):
+        from ansible.utils.template import template
+        return template(self.basedir, dict.__getitem__(self, name), self, fail_on_undefined=True)
+
+
 def get_ansible_variables(self):
+    inject_ansible_paths()
     from ploy_ansible.inventory import Inventory
     inventory = Inventory(self.master.ctrl)
-    return inventory.get_variables(self.uid)
+    basedir = get_playbooks_directory(self.master.ctrl.config)
+    result = AnsibleVariablesDict(inventory.get_variables(self.uid))
+    result.basedir = basedir
+    return result
 
 
 def get_vault_lib(self):

@@ -166,6 +166,9 @@ Changelog
 1.2.0 - Unreleased
 ------------------
 
+* Expand Ansible variables in get_ansible_variables method.
+  [fschulze]
+
 * Support Ansible vault with safe key storage.
   [fschulze]
 
