@@ -830,7 +830,6 @@ def get_playbook(self, *args, **kwargs):
     stats = ansible.callbacks.AggregateStats()
     callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
     runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
-    inventory = Inventory(self.master.ctrl)
     skip_host_check = kwargs.pop('skip_host_check', False)
     if roles is None:
         kwargs['playbook'] = playbook
@@ -838,6 +837,7 @@ def get_playbook(self, *args, **kwargs):
         kwargs['roles'] = roles
     if VaultLib is not None:
         kwargs['vault_password'] = get_vault_password_source(self.master.main_config).get()
+    inventory = Inventory(self.master.ctrl, vault_password=kwargs.get('vault_password'))
     try:
         pb = PlayBook(
             *args,
@@ -894,7 +894,8 @@ class AnsibleVariablesDict(dict):
 def get_ansible_variables(self):
     inject_ansible_paths()
     from ploy_ansible.inventory import Inventory
-    inventory = Inventory(self.master.ctrl)
+    vault_password = get_vault_password_source(self.master.main_config).get(fail_on_error=False)
+    inventory = Inventory(self.master.ctrl, vault_password=vault_password)
     basedir = get_playbooks_directory(self.master.ctrl.config)
     result = AnsibleVariablesDict(inventory.get_variables(self.uid))
     result.basedir = basedir

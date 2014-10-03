@@ -22,11 +22,12 @@ class PloyInventoryDict(dict):
 
 
 class Inventory(BaseInventory):
-    def __init__(self, ctrl):
+    def __init__(self, ctrl, vault_password=None):
         from ploy_ansible import get_playbooks_directory
-        BaseInventory.__init__(
-            self,
-            host_list=[])
+        kwargs = dict(host_list=[])
+        if vault_password is not None:
+            kwargs['vault_password'] = vault_password
+        BaseInventory.__init__(self, **kwargs)
         self.ctrl = ctrl
         self.set_playbook_basedir(get_playbooks_directory(ctrl.config))
         groups = {}
