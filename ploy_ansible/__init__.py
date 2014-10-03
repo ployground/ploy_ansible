@@ -644,6 +644,9 @@ class AnsibleVaultCmd(object):
     def __init__(self, ctrl):
         self.ctrl = ctrl
 
+    def get_completion(self):
+        return ('create', 'decrypt', 'edit', 'encrypt', 'rekey')
+
     def __call__(self, argv, help):
         """Manage vault encrypted files."""
         parser = argparse.ArgumentParser(
