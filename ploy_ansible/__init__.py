@@ -20,12 +20,20 @@ def inject_ansible_paths():
         sys.exit(1)
     extra_roles = []
     extra_library = []
+    plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
+    extra_plugins = {}
     for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
         pathinfo = entrypoint.load()
         extra_roles.extend(pathinfo.get('roles', []))
         extra_library.extend(pathinfo.get('library', []))
+        for key in pathinfo:
+            plugin_path_name = 'DEFAULT_%s_PLUGIN_PATH' % key.upper()
+            if plugin_path_name in plugin_path_names:
+                extra_plugins.setdefault(plugin_path_name, []).extend(pathinfo[key])
     C.DEFAULT_ROLES_PATH = pathsep.join([pathsep.join(extra_roles), C.DEFAULT_ROLES_PATH])
     C.DEFAULT_MODULE_PATH = pathsep.join([pathsep.join(extra_library), C.DEFAULT_MODULE_PATH])
+    for attr in extra_plugins:
+        setattr(C, attr, pathsep.join([pathsep.join(extra_plugins[attr]), getattr(C, attr)]))
 
 
 def get_playbooks_directory(main_config):
