@@ -11,6 +11,10 @@ from os.path import pathsep
 log = logging.getLogger('ploy_ansible')
 
 
+ansible_paths = dict(
+    lookup=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lookup_plugins')])
+
+
 def inject_ansible_paths():
     # collect and inject ansible paths (roles and library) from entrypoints
     try:

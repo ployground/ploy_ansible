@@ -45,6 +45,8 @@ setup(
     packages=['ploy_ansible'],
     install_requires=install_requires,
     entry_points="""
+        [ansible_paths]
+        ploy_ansible = ploy_ansible:ansible_paths
         [ploy.plugins]
         ansible = ploy_ansible:plugin
     """)

@@ -166,6 +166,10 @@ Changelog
 1.2.0 - Unreleased
 ------------------
 
+* Provide ploy_crypted lookup plugin to load encrypted files into Ansible
+  variables. Only ascii and utf8 encoded files will work.
+  [fschulze]
+
 * Expand Ansible variables in get_ansible_variables method.
   [fschulze]
 

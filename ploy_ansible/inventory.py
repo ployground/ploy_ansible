@@ -60,8 +60,11 @@ class Inventory(BaseInventory):
         host = self.get_host(hostname)
         if host is None:
             raise errors.AnsibleError("host not found: %s" % hostname)
-        result = dict(ansible_connection='execnet_connection')
         instance = self.ctrl.instances[hostname]
+        result = dict(
+            ansible_connection='execnet_connection',
+            _ploy_instance=instance,
+            _ploy_instances=self.ctrl.instances)
         for k, v in instance.config.items():
             if k == 'password' and instance.config['password-fallback']:
                 result['ansible_ssh_pass'] = v
