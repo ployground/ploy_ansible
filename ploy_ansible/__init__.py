@@ -716,6 +716,7 @@ class AnsibleVaultCmd(object):
                 this_editor.decrypt_file()
             except self.AnsibleError as e:
                 log.error("%s" % e)
+            log.info("Decrypted %s" % f)
 
     def cmd_edit(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
@@ -733,6 +734,7 @@ class AnsibleVaultCmd(object):
                 this_editor.encrypt_file()
             except self.AnsibleError as e:
                 log.error("%s" % e)
+            log.info("Encrypted %s" % f)
 
     def cmd_rekey(self, args):
         old_password = get_vault_password_source(self.ctrl.config, option='vault-password-old-source').get()
@@ -746,6 +748,7 @@ class AnsibleVaultCmd(object):
                 this_editor.rekey_file(password)
             except self.AnsibleError as e:
                 log.error("%s" % e)
+            log.info("Rekeyed %s" % f)
 
 
 def connect_patch_factory(ctrl):
