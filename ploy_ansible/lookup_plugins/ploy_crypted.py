@@ -27,7 +27,7 @@ class LookupModule(object):
                     if vaultlib.is_encrypted(data):
                         data = vaultlib.decrypt(data)
                     try:
-                        data = data.decode('utf8').rstrip()
+                        data = data.decode('utf8')
                     except UnicodeDecodeError as e:
                         raise errors.AnsibleError("UnicodeDecodeError encrypted file lookup, only ascii and utf8 supported: %s\n%s" % (term, e))
                     ret.append(data)
