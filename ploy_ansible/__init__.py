@@ -47,7 +47,7 @@ def get_playbooks_directory(main_config):
 
 
 class NullSource:
-    def get(self):
+    def get(self, fail_on_error=True):
         return
 
     def set(self, key):
