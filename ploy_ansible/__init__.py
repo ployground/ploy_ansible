@@ -249,6 +249,25 @@ class AnsibleCmd(object):
             sys.exit(3)
 
 
+def parse_extra_vars(extras, vault_pass=None):
+    from ansible import utils
+    extra_vars = {}
+    for extra_vars_opt in extras:
+        if extra_vars_opt.startswith("@"):
+            # Argument is a YAML file (JSON is a subset of YAML)
+            kw = {}
+            if vault_pass:
+                kw['vault_password'] = vault_pass
+            extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml_from_file(extra_vars_opt[1:]), **kw)
+        elif extra_vars_opt and extra_vars_opt[0] in '[{':
+            # Arguments as YAML
+            extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml(extra_vars_opt))
+        else:
+            # Arguments as Key-value
+            extra_vars = utils.combine_vars(extra_vars, utils.parse_kv(extra_vars_opt))
+    return extra_vars
+
+
 class AnsiblePlaybookCmd(object):
     """Run Ansible playbook"""
 
@@ -379,21 +398,7 @@ class AnsiblePlaybookCmd(object):
 
                     if not options.ask_vault_pass:
                         vault_pass = tmp_vault_pass
-            extra_vars = {}
-            for extra_vars_opt in options.extra_vars:
-                if extra_vars_opt.startswith("@"):
-                    # Argument is a YAML file (JSON is a subset of YAML)
-                    kw = {}
-                    if vault_pass:
-                        kw['vault_password'] = vault_pass
-                    extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml_from_file(extra_vars_opt[1:]), **kw)
-                elif extra_vars_opt and extra_vars_opt[0] in '[{':
-                    # Arguments as YAML
-                    extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml(extra_vars_opt))
-                else:
-                    # Arguments as Key-value
-                    extra_vars = utils.combine_vars(extra_vars, utils.parse_kv(extra_vars_opt))
-
+            extra_vars = parse_extra_vars(options.extra_vars, vault_pass=vault_pass)
             only_tags = options.tags.split(",")
             skip_tags = options.skip_tags
             if options.skip_tags is not None:
@@ -582,6 +587,12 @@ class AnsibleConfigureCmd(object):
             dest='skip_tags',
             help="only run plays and tasks whose tags do not match these values")
         parser.add_argument(
+            '-e', '--extra-vars',
+            dest="extra_vars",
+            action="append",
+            default=[],
+            help="set additional variables as key=value or YAML/JSON")
+        parser.add_argument(
             "instance",
             nargs=1,
             metavar="instance",
@@ -593,10 +604,12 @@ class AnsibleConfigureCmd(object):
         skip_tags = args.skip_tags
         if skip_tags is not None:
             skip_tags = skip_tags.split(",")
+        extra_vars = parse_extra_vars(args.extra_vars)
         instance.hooks.before_ansible_configure(instance)
         instance.configure(
             only_tags=only_tags,
             skip_tags=skip_tags,
+            extra_vars=extra_vars,
             verbosity=args.verbose)
         instance.hooks.after_ansible_configure(instance)
 
