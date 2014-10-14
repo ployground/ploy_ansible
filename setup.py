@@ -14,6 +14,18 @@ install_requires = [
     'ploy >= 1.0.0',
     'execnet']
 
+extras_require = {
+    'development': [
+        'coverage',
+        'mock',
+        'pytest',
+        'pytest-capturelog',
+        'pytest-pep8',
+        'pytest-flakes',
+        'snot',
+    ],
+}
+
 
 # workaround for installing via buildout, as ansible
 # violates its sandbox limitations
@@ -44,6 +56,7 @@ setup(
     zip_safe=False,
     packages=['ploy_ansible'],
     install_requires=install_requires,
+    extras_require=extras_require,
     entry_points="""
         [ansible_paths]
         ploy_ansible = ploy_ansible:ansible_paths
