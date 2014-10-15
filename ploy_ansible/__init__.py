@@ -250,6 +250,7 @@ class AnsibleCmd(object):
 
 
 def parse_extra_vars(extras, vault_pass=None):
+    inject_ansible_paths()
     from ansible import utils
     extra_vars = {}
     for extra_vars_opt in extras:
