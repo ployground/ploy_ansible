@@ -166,6 +166,9 @@ Changelog
 1.2.0 - Unreleased
 ------------------
 
+* Add ``--extra-vars`` option to ``configure`` command.
+  [witsch (Andreas Zeidler)]
+
 * Provide ploy_crypted lookup plugin to load encrypted files into Ansible
   variables. Only ascii and utf8 encoded files will work.
   [fschulze]
