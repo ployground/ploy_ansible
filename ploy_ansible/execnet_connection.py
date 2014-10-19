@@ -69,7 +69,10 @@ class Connection(object):
             vars = self.runner.inventory.get_variables(self.host)
             spec.python = vars.get('ansible_python_interpreter', 'python')
             gw = execnet.makegateway(spec)
-            channel = gw.remote_exec(remote)
+            try:
+                channel = gw.remote_exec(remote)
+            except IOError as e:
+                raise errors.AnsibleError("Couldn't open execnet channel for '%s': %s" % (instance.config_id, e))
             RPC_CACHE[self._cache_key] = RPCWrapper(channel)
         self.rpc = RPC_CACHE[self._cache_key]
         return self
