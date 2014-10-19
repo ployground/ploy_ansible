@@ -120,6 +120,10 @@ class AnsibleCmd(object):
         from ansible import callbacks
         from ploy_ansible.inventory import Inventory
         from ansible import utils
+        try:
+            from ansible.utils.vault import VaultLib
+        except ImportError:
+            VaultLib = None
         parser = utils.base_parser(
             constants=C,
             runas_opts=True,
@@ -180,6 +184,8 @@ class AnsibleCmd(object):
             (sshpass, sudopass, su_pass) = passwds
         else:
             (sshpass, sudopass, su_pass, vault_pass) = passwds
+        if VaultLib is not None and vault_pass is None:
+            vault_pass = get_vault_password_source(self.ctrl.config).get()
         if getattr(options, 'vault_password_file', None):
             this_path = os.path.expanduser(options.vault_password_file)
             try:
@@ -285,6 +291,10 @@ class AnsiblePlaybookCmd(object):
         from ploy_ansible.inventory import Inventory
         from ansible import utils
         from ansible.color import ANSIBLE_COLOR, stringc
+        try:
+            from ansible.utils.vault import VaultLib
+        except ImportError:
+            VaultLib = None
 
         ansible_version = tuple(int(x) for x in __version__.split('.'))
         parser = utils.base_parser(
@@ -381,6 +391,8 @@ class AnsiblePlaybookCmd(object):
                     (sshpass, sudopass, su_pass) = passwds
                 else:
                     (sshpass, sudopass, su_pass, vault_pass) = passwds
+                if VaultLib is not None and vault_pass is None:
+                    vault_pass = get_vault_password_source(self.ctrl.config).get()
                 if options.sudo_user or options.ask_sudo_pass:
                     options.sudo = True
                 options.sudo_user = options.sudo_user or C.DEFAULT_SUDO_USER
