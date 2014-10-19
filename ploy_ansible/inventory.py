@@ -55,6 +55,8 @@ class Inventory(BaseInventory):
                     groups[group] = g
                 g.add_host(h)
         self._vars_plugins = [x for x in utils.plugins.vars_loader.all(self)]
+        self._hosts_cache.clear()
+        self._pattern_cache.clear()
 
     def _get_variables(self, hostname, **kwargs):
         host = self.get_host(hostname)

@@ -166,6 +166,9 @@ Changelog
 1.2.0 - Unreleased
 ------------------
 
+* Clear host and pattern cache after calling original Inventory.__init__ method.
+  [fschulze]
+
 * Add ``--extra-vars`` option to ``configure`` command.
   [witsch (Andreas Zeidler)]
 
