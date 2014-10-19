@@ -221,7 +221,7 @@ class AnsibleCmd(object):
         if hasattr(options, 'su_pass'):
             kw['su_pass'] = options.su_pass
         if vault_pass:
-            kw['vault_password'] = vault_pass
+            kw['vault_pass'] = vault_pass
         runner = Runner(
             module_name=options.module_name,
             module_path=options.module_path,
