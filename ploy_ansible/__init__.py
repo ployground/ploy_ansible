@@ -162,9 +162,6 @@ class AnsibleCmd(object):
         cbs.options = options
         pattern = args[0]
         patch_connect(self.ctrl)
-        inventory_manager = Inventory(self.ctrl)
-        if options.subset:
-            inventory_manager.subset(options.subset)
         sudopass = None
         su_pass = None
         vault_pass = None
@@ -198,6 +195,9 @@ class AnsibleCmd(object):
             if not options.ask_vault_pass:
                 vault_pass = tmp_vault_pass
 
+        inventory_manager = Inventory(self.ctrl, vault_password=vault_pass)
+        if options.subset:
+            inventory_manager.subset(options.subset)
         hosts = inventory_manager.list_hosts(pattern)
         if len(hosts) == 0:
             callbacks.display("No hosts matched", stderr=True)
@@ -370,7 +370,6 @@ class AnsiblePlaybookCmd(object):
 
         try:
             patch_connect(self.ctrl)
-            inventory = Inventory(self.ctrl)
             sudopass = None
             su_pass = None
             vault_pass = None
@@ -411,6 +410,7 @@ class AnsiblePlaybookCmd(object):
 
                     if not options.ask_vault_pass:
                         vault_pass = tmp_vault_pass
+            inventory = Inventory(self.ctrl, vault_password=vault_pass)
             extra_vars = parse_extra_vars(options.extra_vars, vault_pass=vault_pass)
             only_tags = options.tags.split(",")
             skip_tags = options.skip_tags
