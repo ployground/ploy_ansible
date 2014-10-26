@@ -236,6 +236,100 @@ def test_ansible(ctrl, monkeypatch):
     assert runmock.called
 
 
+class PasswordDeleteError(Exception):
+    pass
+
+
+class MockKeyringErrors:
+    PasswordDeleteError = PasswordDeleteError
+
+
+class MockKeyring:
+    errors = MockKeyringErrors()
+
+    def __init__(self):
+        self.passwords = {}
+
+    def delete_password(self, system, username):
+        if system == "ploy_ansible":
+            if username in self.passwords:
+                del self.passwords[username]
+                return
+        raise PasswordDeleteError()
+
+    def get_password(self, system, username):
+        if system == "ploy_ansible":
+            return self.passwords.get(username)
+
+    def set_password(self, system, username, password):
+        if system == "ploy_ansible":
+            self.passwords[username] = password
+
+
+@pytest.fixture
+def getpass(monkeypatch):
+    getpass = MagicMock()
+    monkeypatch.setattr("getpass.getpass", getpass)
+    return getpass
+
+
+@pytest.fixture
+def keyring(monkeypatch):
+    keyring = MockKeyring()
+    monkeypatch.setattr("ploy_ansible.KeyringSource.keyring", keyring)
+    return keyring
+
+
+def test_vault_key_generate(ctrl, keyring, ployconf):
+    ployconf.fill([
+        '[ansible]',
+        'vault-password-source = ploy_ansible-test-key'])
+    assert 'ploy_ansible-test-key' not in keyring.passwords
+    ctrl(['./bin/ploy', 'vault-key', 'generate'])
+    assert 'ploy_ansible-test-key' in keyring.passwords
+
+
+def test_vault_key_set(ctrl, getpass, keyring, ployconf):
+    getpass.return_value = "foo"
+    ployconf.fill([
+        '[ansible]',
+        'vault-password-source = ploy_ansible-test-key'])
+    assert 'ploy_ansible-test-key' not in keyring.passwords
+    ctrl(['./bin/ploy', 'vault-key', 'set'])
+    assert keyring.passwords['ploy_ansible-test-key'] == "foo"
+
+
+def test_vault_key_set_existing(ctrl, getpass, keyring, ployconf):
+    getpass.return_value = "foo"
+    ployconf.fill([
+        '[ansible]',
+        'vault-password-source = ploy_ansible-test-key'])
+    keyring.passwords['ploy_ansible-test-key'] = "bar"
+    with patch('ploy_ansible.yesno') as YesNoMock:
+        YesNoMock.return_value = False
+        ctrl(['./bin/ploy', 'vault-key', 'set'])
+    assert keyring.passwords['ploy_ansible-test-key'] == "bar"
+    with patch('ploy_ansible.yesno') as YesNoMock:
+        YesNoMock.return_value = True
+        ctrl(['./bin/ploy', 'vault-key', 'set'])
+    assert keyring.passwords['ploy_ansible-test-key'] == "foo"
+
+
+def test_vault_key_delete(ctrl, keyring, ployconf):
+    ployconf.fill([
+        '[ansible]',
+        'vault-password-source = ploy_ansible-test-key'])
+    keyring.passwords['ploy_ansible-test-key'] = "foo"
+    with patch('ploy_ansible.yesno') as YesNoMock:
+        YesNoMock.return_value = False
+        ctrl(['./bin/ploy', 'vault-key', 'delete'])
+    assert 'ploy_ansible-test-key' in keyring.passwords
+    with patch('ploy_ansible.yesno') as YesNoMock:
+        YesNoMock.return_value = True
+        ctrl(['./bin/ploy', 'vault-key', 'delete'])
+    assert 'ploy_ansible-test-key' not in keyring.passwords
+
+
 def test_execnet_connection(ctrl, monkeypatch):
     import tempfile
     init_ssh_key_mock = MagicMock()

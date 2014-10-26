@@ -1,8 +1,10 @@
 import argparse
+import getpass
 import logging
 import pkg_resources
 import os
 import sys
+from binascii import b2a_base64
 from lazy import lazy
 from ploy.common import yesno
 from os.path import pathsep
@@ -60,13 +62,16 @@ class NullSource:
 
 
 class KeyringSource:
+    keyring = None
+
     def __init__(self, id):
-        try:
-            import keyring
-        except ImportError:
-            log.error("Couldn't import 'keyring' library.")
-            sys.exit(1)
-        self.keyring = keyring
+        if self.keyring is None:
+            try:
+                import keyring
+            except ImportError:
+                log.error("Couldn't import 'keyring' library.")
+                sys.exit(1)
+            self.keyring = keyring
         if not id:
             log.error("No unique id for vault password in keyring secified.")
             sys.exit(1)
@@ -100,10 +105,7 @@ def get_vault_password_source(main_config, option='vault-password-source'):
     src = ansible_config.get(option)
     if src is None:
         return NullSource()
-    if src.startswith('keyring:'):
-        return KeyringSource(src.split(':', 1)[1])
-    log.error("Unknown vault password source '%s'." % src)
-    sys.exit(1)
+    return KeyringSource(src)
 
 
 class AnsibleCmd(object):
@@ -632,50 +634,55 @@ class AnsibleVaultKeyCmd(object):
     def __init__(self, ctrl):
         self.ctrl = ctrl
 
+    def get_completion(self):
+        return ('generate', 'set', 'delete')
+
     def __call__(self, argv, help):
         """Manage vault keys."""
         parser = argparse.ArgumentParser(
             prog="%s vault-key" % self.ctrl.progname,
             description=help)
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument(
-            '-g', '--generate',
-            action="store_true",
-            help="generate a new random 32 byte vault key and store it")
-        group.add_argument(
-            '-s', '--set',
-            action="store_true",
-            help="set the vault key")
-        group.add_argument(
-            '-d', '--delete',
-            action="store_true",
-            help="delete the vault key")
+        subparsers = parser.add_subparsers(help="sub commands of vault-key command")
         parser.add_argument(
             '-o', '--old',
             action="store_true",
             help="use 'vault-password-old-source'")
+        generateparser = subparsers.add_parser(
+            "generate",
+            help="generate a new random 32 byte vault key and store it")
+        generateparser.set_defaults(func=self.cmd_generate)
+        setparser = subparsers.add_parser(
+            "set",
+            help="set the vault key")
+        setparser.set_defaults(func=self.cmd_set)
+        deleteparser = subparsers.add_parser(
+            "delete",
+            help="delete the vault key")
+        deleteparser.set_defaults(func=self.cmd_delete)
         args = parser.parse_args(argv)
         if args.old:
             src = get_vault_password_source(self.ctrl.config, option='vault-password-old-source')
         else:
             src = get_vault_password_source(self.ctrl.config)
-        if args.generate:
-            if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
-                sys.exit(1)
-            from binascii import b2a_base64
-            key = b2a_base64(os.urandom(32))
-            key = key.strip()
-            key = key.replace('+', '-')
-            key = key.replace('/', '_')
-            src.set(key)
-        elif args.set:
-            if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
-                sys.exit(1)
-            import getpass
-            src.set(getpass.getpass("Password for '%s': " % src.id))
-        elif args.delete:
-            if yesno("Do you really want to delete the key for '%s'?" % src.id):
-                src.delete()
+        args.func(args, src)
+
+    def cmd_generate(self, args, src):
+        if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
+            sys.exit(1)
+        key = b2a_base64(os.urandom(32))
+        key = key.strip()
+        key = key.replace('+', '-')
+        key = key.replace('/', '_')
+        src.set(key)
+
+    def cmd_set(self, args, src):
+        if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
+            return
+        src.set(getpass.getpass("Password for '%s': " % src.id))
+
+    def cmd_delete(self, args, src):
+        if yesno("Do you really want to delete the key for '%s'?" % src.id):
+            src.delete()
 
 
 class AnsibleVaultCmd(object):

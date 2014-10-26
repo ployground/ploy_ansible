@@ -81,17 +81,11 @@ By default it is set to the parent directory of the directory the ``ploy.conf`` 
 vault-password-source
 ~~~~~~~~~~~~~~~~~~~~~
 
-The ``vault-password-source`` option allows you to set where the encryption key for the Ansible vault comes from.
+Using the `keyring <https://pypi.python.org/pypi/keyring/4.0/>`_ library, you can store the encryption key for the Ansible vault in your keychain.
 
-You specify the kind of source separated by a colon from the id you want to use.
-
+The ``vault-password-source`` option is the id used in your keychain.
 The id must be unique among all people who have to use the feature, as it is used as an identifier in their keychain.
 If in doubt, use a speaking prefix and add a guid by running ``python -c "import uuid; print(uuid.uuid4().hex)"``.
-
-These sources are supported:
-
-``keyring``
-  Use the `keyring <https://pypi.python.org/pypi/keyring/4.0/>`_ library to store the key.
 
 If you want to rekey your files, you have to put the old id into the ``vault-password-old-source`` option and set a new id in ``vault-password-source``.
 Just incrementing a number or appending a new guid is best.
@@ -101,8 +95,8 @@ Example:
 .. code-block:: ini
 
     [ansible]
-    vault-password-old-source = keyring:my-domain-deployment-0da2c8296f744c90a236721486dbd258
-    vault-password-source = keyring:my-domain-deployment-042a98b666ec4e4e8e06de7d42688f3b
+    vault-password-old-source = my-domain-deployment-0da2c8296f744c90a236721486dbd258
+    vault-password-source = my-domain-deployment-042a98b666ec4e4e8e06de7d42688f3b
 
 
 Per instance
