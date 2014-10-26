@@ -692,6 +692,9 @@ class AnsibleVaultCmd(object):
             prog="%s vault" % self.ctrl.progname,
             description=help)
         subparsers = parser.add_subparsers(help="sub commands of vault command")
+        catparser = subparsers.add_parser("cat", help="cat contents of an encrypted file")
+        catparser.add_argument("file", nargs=1)
+        catparser.set_defaults(func=self.cmd_cat)
         createparser = subparsers.add_parser("create", help="create an encrypted file")
         createparser.add_argument("file", nargs=1)
         createparser.set_defaults(func=self.cmd_create)
@@ -725,6 +728,27 @@ class AnsibleVaultCmd(object):
             log.error("Your ansible installation doesn't support vaults.")
             sys.exit(1)
         return VaultEditor
+
+    @lazy
+    def vl(self):
+        inject_ansible_paths()
+        try:
+            from ansible.utils.vault import VaultLib
+        except ImportError:
+            log.error("Your ansible installation doesn't support vaults.")
+            sys.exit(1)
+        return VaultLib
+
+    def cmd_cat(self, args):
+        password = get_vault_password_source(self.ctrl.config).get()
+        this_editor = self.ve(None, password, args.file[0])
+        vl = self.vl(password)
+        try:
+            sys.stdout.write(vl.decrypt(this_editor.read_data(this_editor.filename)))
+            sys.stdout.flush()
+        except self.AnsibleError as e:
+            log.error("%s" % e)
+            sys.exit(1)
 
     def cmd_create(self, args):
         password = get_vault_password_source(self.ctrl.config).get()
