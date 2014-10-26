@@ -65,6 +65,7 @@ class Inventory(BaseInventory):
         instance = self.ctrl.instances[hostname]
         result = dict(
             ansible_connection='execnet_connection',
+            ansible_ssh_user=instance.config.get('user', 'root'),
             _ploy_instance=instance,
             _ploy_instances=self.ctrl.instances)
         for k, v in instance.config.items():

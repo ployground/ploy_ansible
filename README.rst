@@ -166,6 +166,9 @@ Changelog
 1.2.0 - Unreleased
 ------------------
 
+* Always set ``ansible_ssh_user`` in inventory.
+  [fschulze]
+
 * Clear host and pattern cache after calling original Inventory.__init__ method.
   [fschulze]
 
