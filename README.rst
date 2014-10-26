@@ -132,6 +132,19 @@ All instances in ``ploy.conf`` are available to Ansible via their **unique id**.
 The variables for each instance are gathered from ``group_vars``, ``host_vars`` and the ``ploy.conf``.
 
 
+Ansible lookup plugins
+======================
+
+The ``ploy_crypted`` lookup plugin can be used in playbooks to read the content of encrypted files.
+This is another way to access encrypted data where you don't have to move that data into yml files.
+An added benefit is, that the file is only decrypted when it is actually accessed.
+If you run tasks filtered by tags and those tasks don't access the encrypted data, then it's not decrypted at all.
+
+.. warning::
+  This lookup plugin only works with files that are plain ascii or utf-8.
+  It's a limitation caused by the way ansible handles variable substitution.
+
+
 API usage
 =========
 
