@@ -98,6 +98,8 @@ Example:
     vault-password-old-source = my-domain-deployment-0da2c8296f744c90a236721486dbd258
     vault-password-source = my-domain-deployment-042a98b666ec4e4e8e06de7d42688f3b
 
+You can manage your key with the ``vault-key`` command.
+For easy exchange with other developers, you can also export and import the key via gpg using the ``vault-key export`` and ``vault-key import`` commands.
 
 Per instance
 ------------

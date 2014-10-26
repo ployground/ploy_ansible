@@ -3,6 +3,7 @@ import getpass
 import logging
 import pkg_resources
 import os
+import subprocess
 import sys
 from binascii import b2a_base64
 from lazy import lazy
@@ -630,12 +631,14 @@ class AnsibleConfigureCmd(object):
 
 
 class AnsibleVaultKeyCmd(object):
+    # Additional GPG parameters. Used for testing.
+    gpg_opts = ()
 
     def __init__(self, ctrl):
         self.ctrl = ctrl
 
     def get_completion(self):
-        return ('generate', 'set', 'delete')
+        return ('delete', 'export', 'generate', 'import', 'set')
 
     def __call__(self, argv, help):
         """Manage vault keys."""
@@ -647,24 +650,53 @@ class AnsibleVaultKeyCmd(object):
             '-o', '--old',
             action="store_true",
             help="use 'vault-password-old-source'")
-        generateparser = subparsers.add_parser(
-            "generate",
-            help="generate a new random 32 byte vault key and store it")
-        generateparser.set_defaults(func=self.cmd_generate)
-        setparser = subparsers.add_parser(
-            "set",
-            help="set the vault key")
-        setparser.set_defaults(func=self.cmd_set)
         deleteparser = subparsers.add_parser(
             "delete",
             help="delete the vault key")
         deleteparser.set_defaults(func=self.cmd_delete)
+        exportparser = subparsers.add_parser(
+            "export",
+            help="export key from gpg encrypted file")
+        exportparser.add_argument("recipient")
+        exportparser.add_argument("file", nargs='?')
+        exportparser.set_defaults(func=self.cmd_export)
+        generateparser = subparsers.add_parser(
+            "generate",
+            help="generate a new random 32 byte vault key and store it")
+        generateparser.set_defaults(func=self.cmd_generate)
+        importparser = subparsers.add_parser(
+            "import",
+            help="import key from gpg encrypted file")
+        importparser.add_argument("file")
+        importparser.set_defaults(func=self.cmd_import)
+        setparser = subparsers.add_parser(
+            "set",
+            help="set the vault key")
+        setparser.set_defaults(func=self.cmd_set)
         args = parser.parse_args(argv)
         if args.old:
             src = get_vault_password_source(self.ctrl.config, option='vault-password-old-source')
         else:
             src = get_vault_password_source(self.ctrl.config)
         args.func(args, src)
+
+    def cmd_export(self, args, src):
+        key = src.get()
+        recipient = args.recipient
+        if args.file:
+            fn = args.file
+        else:
+            fn = os.path.join(self.ctrl.config.path, "%s.key.gpg" % recipient)
+        cmd = ['gpg', '--quiet', '--no-tty', '--armor', '--batch', '--encrypt']
+        cmd.extend(self.gpg_opts)
+        cmd.extend(['--recipient', recipient, '--output', fn])
+        gpg = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        gpg.communicate(key)
+        if gpg.returncode != 0:
+            log.error('GPG returned non-zero exit code.')
+            log.info('Command used: %s', ' '.join(cmd))
+            sys.exit(gpg.returncode)
+        log.info("Encrypted key into '%s'." % fn)
 
     def cmd_generate(self, args, src):
         if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
@@ -673,6 +705,15 @@ class AnsibleVaultKeyCmd(object):
         key = key.strip()
         key = key.replace('+', '-')
         key = key.replace('/', '_')
+        src.set(key)
+
+    def cmd_import(self, args, src):
+        if src.get(fail_on_error=False) and not yesno("There is already a key stored, do you want to replace it?"):
+            return
+        cmd = ['gpg', '--quiet', '--no-tty', '--decrypt']
+        cmd.extend(self.gpg_opts)
+        cmd.extend([args.file])
+        key = subprocess.check_output(cmd)
         src.set(key)
 
     def cmd_set(self, args, src):
