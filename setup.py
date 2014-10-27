@@ -12,7 +12,7 @@ version = "1.2.0dev"
 
 install_requires = [
     'setuptools',
-    'ploy >= 1.0.0',
+    'ploy >= 1.0.0, < 2dev',
     'execnet']
 
 
