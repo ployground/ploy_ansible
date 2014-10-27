@@ -20,7 +20,8 @@ Changelog
 * Expand Ansible variables in get_ansible_variables method.
   [fschulze]
 
-* Support Ansible vault with safe key storage.
+* Support Ansible vault with safe key storage via keyring library, so you don't
+  have to type it in or have it in an unprotected file.
   [fschulze]
 
 
