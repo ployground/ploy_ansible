@@ -1,2 +1,3 @@
-include *.ini
 include *.rst
+include setup.py
+include tox.ini
