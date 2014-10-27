@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2.0 - Unreleased
+1.2.0 - 2014-10-27
 ------------------
 
 * Always set ``ansible_ssh_user`` in inventory.
