@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2.1 - Unreleased
+1.2.1 - 2015-01-06
 ------------------
 
 * Limit Ansible to pre 1.8, as > 1.8 breaks stuff.
