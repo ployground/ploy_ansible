@@ -4,6 +4,8 @@ Changelog
 1.2.1 - Unreleased
 ------------------
 
+* Limit Ansible to pre 1.8, as > 1.8 breaks stuff.
+  [fschulze]
 
 
 1.2.0 - 2014-10-27
