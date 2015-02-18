@@ -31,8 +31,8 @@ def inject_ansible_paths():
     extra_plugins = {}
     for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
         pathinfo = entrypoint.load()
-        extra_roles.extend(pathinfo.get('roles', []))
-        extra_library.extend(pathinfo.get('library', []))
+        extra_roles.extend([role for role in pathinfo.get('roles', []) if role is not None])
+        extra_library.extend([library for library in pathinfo.get('library', []) if library is not None])
         for key in pathinfo:
             plugin_path_name = 'DEFAULT_%s_PLUGIN_PATH' % key.upper()
             if plugin_path_name in plugin_path_names:
