@@ -4,6 +4,8 @@ Changelog
 1.2.2 - Unreleased
 ------------------
 
+* Test and fixes for changes in ansible 1.8.
+  [fschulze]
 
 
 1.2.1 - 2015-01-06
