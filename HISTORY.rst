@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2.2 - Unreleased
+1.2.2 - 2015-02-18
 ------------------
 
 * Test and fixes for changes in ansible 1.8.
