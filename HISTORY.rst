@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2.4 - Unreleased
+1.2.4 - 2015-02-28
 ------------------
 
 * Pass on the ``sudo`` setting if the ``roles`` option is used.
