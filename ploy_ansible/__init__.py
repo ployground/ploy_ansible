@@ -916,6 +916,7 @@ def get_playbook(self, *args, **kwargs):
 
     host = self.uid
     user = self.config.get('user', 'root')
+    sudo = self.config.get('sudo')
     playbooks_directory = get_playbooks_directory(self.master.main_config)
 
     class PlayBook(ansible.playbook.PlayBook):
@@ -932,11 +933,14 @@ def get_playbook(self, *args, **kwargs):
             if self.roles is None:
                 return ansible.playbook.PlayBook._load_playbook_from_file(
                     self, *args, **kwargs)
+            settings = {
+                'hosts': [host],
+                'user': user,
+                'roles': self.roles}
+            if sudo is not None:
+                settings['sudo'] = sudo
             return (
-                [{
-                    'hosts': [host],
-                    'user': user,
-                    'roles': self.roles}],
+                [settings],
                 [playbooks_directory])
 
     patch_connect(self.master.ctrl)

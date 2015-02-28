@@ -4,6 +4,9 @@ Changelog
 1.2.4 - Unreleased
 ------------------
 
+* Pass on the ``sudo`` setting if the ``roles`` option is used.
+  [fschulze]
+
 
 1.2.3 - 2015-02-28
 ------------------

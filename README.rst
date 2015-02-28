@@ -108,9 +108,11 @@ Per instance
   Used by the ``configure`` command.
   This allows you to configure an instance by applying the whitespace separated roles.
   This is like creating a playbook which only specifies a host and a list of roles names.
+  If the ``sudo`` option is set, it's also set for the generated playbook.
 
 ``playbook``
   Allows you to explicitly specify a playbook to use for this instance.
+  If you need ``sudo``, then you have to add it yourself in that playbook.
 
 Any option starting with ``ansible_`` is passed through to Ansible as is. This can be used for settings like ``ansible_python_interpreter``.
 
