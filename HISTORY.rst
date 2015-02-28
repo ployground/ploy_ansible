@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.2.3 - Unreleased
+1.2.3 - 2015-02-28
 ------------------
 
 * Fix sudo support for ansible > 1.6.
