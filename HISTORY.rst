@@ -7,6 +7,10 @@ Changelog
 * Print warning when using an untested version of ansible.
   [fschulze]
 
+* If ansible isn't installed, then require >= 1.8 as that doesn't violate
+  the sandbox of buildout anymore.
+  [fschulze]
+
 
 1.2.2 - 2015-02-18
 ------------------

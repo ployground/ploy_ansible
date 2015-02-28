@@ -16,12 +16,12 @@ install_requires = [
     'execnet']
 
 
-# workaround for installing via buildout, as ansible
+# workaround for installing via buildout, as ansible<1.8.0
 # violates its sandbox limitations
 try:
     import ansible  # noqa
 except ImportError:
-    install_requires.append('ansible')
+    install_requires.append('ansible>=1.8.0')
 
 
 setup(
