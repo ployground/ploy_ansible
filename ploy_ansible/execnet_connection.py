@@ -91,7 +91,10 @@ class Connection(object):
             else:
                 remote_cmd.append(cmd)
         else:
-            sudocmd, prompt, success_key = utils.make_sudo_cmd(sudo_user, executable, cmd)
+            if hasattr(self.runner, 'sudo_exe'):
+                sudocmd, prompt, success_key = utils.make_sudo_cmd(self.runner.sudo_exe, sudo_user, executable, cmd)
+            else:
+                sudocmd, prompt, success_key = utils.make_sudo_cmd(sudo_user, executable, cmd)
             remote_cmd.append(sudocmd)
         remote_cmd = ' '.join(remote_cmd)
         vvv("execnet exec_command %r" % remote_cmd)

@@ -4,6 +4,9 @@ Changelog
 1.2.3 - Unreleased
 ------------------
 
+* Fix sudo support for ansible > 1.6.
+  [fschulze]
+
 * Print warning when using an untested version of ansible.
   [fschulze]
 
