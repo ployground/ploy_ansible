@@ -4,6 +4,8 @@ Changelog
 1.2.3 - Unreleased
 ------------------
 
+* Print warning when using an untested version of ansible.
+  [fschulze]
 
 
 1.2.2 - 2015-02-18

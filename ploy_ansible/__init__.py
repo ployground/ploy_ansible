@@ -18,13 +18,24 @@ ansible_paths = dict(
     lookup=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lookup_plugins')])
 
 
+def get_ansible_version():
+    from ansible import __version__
+    return tuple(int(x) for x in __version__.split('.'))
+
+
 def inject_ansible_paths():
     # collect and inject ansible paths (roles and library) from entrypoints
     try:
         import ansible.constants as C
+        import ansible
     except ImportError:
         log.error("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
+    if get_ansible_version() >= (1, 9):
+        log.warn(
+            "You are using an untested version %s of ansible. "
+            "The latest tested version is 1.8.X. "
+            "Any errors may be caused by that newer version." % ansible.__version__)
     extra_roles = []
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
@@ -294,7 +305,6 @@ class AnsiblePlaybookCmd(object):
         inject_ansible_paths()
         import ansible.playbook
         import ansible.constants as C
-        from ansible import __version__
         from ansible import errors
         from ansible import callbacks
         from ploy_ansible.inventory import Inventory
@@ -305,7 +315,7 @@ class AnsiblePlaybookCmd(object):
         except ImportError:
             VaultLib = None
 
-        ansible_version = tuple(int(x) for x in __version__.split('.'))
+        ansible_version = get_ansible_version()
         parser = utils.base_parser(
             constants=C,
             connect_opts=True,
