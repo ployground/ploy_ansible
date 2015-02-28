@@ -327,9 +327,10 @@ class AnsiblePlaybookCmd(object):
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
-        parser.add_option(
-            '-e', '--extra-vars', dest="extra_vars", action="append",
-            help="set additional variables as key=value or YAML/JSON", default=[])
+        if ansible_version < (1, 9):
+            parser.add_option(
+                '-e', '--extra-vars', dest="extra_vars", action="append",
+                help="set additional variables as key=value or YAML/JSON", default=[])
         parser.add_option(
             '-t', '--tags', dest='tags', default='all',
             help="only run plays and tasks tagged with these values")
