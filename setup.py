@@ -7,7 +7,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 HISTORY = open(os.path.join(here, 'HISTORY.rst')).read()
 
 
-version = "1.2.3"
+version = "1.2.4.dev0"
 
 
 install_requires = [
