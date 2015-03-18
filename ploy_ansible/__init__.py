@@ -591,6 +591,7 @@ class AnsiblePlaybookCmd(object):
 
 
 class AnsibleConfigureCmd(object):
+    """Configure an instance (ansible playbook run) after it has been started."""
 
     def __init__(self, ctrl):
         self.ctrl = ctrl
@@ -603,7 +604,6 @@ class AnsibleConfigureCmd(object):
         return sorted(instances)
 
     def __call__(self, argv, help):
-        """Configure an instance (ansible playbook run) after it has been started."""
         parser = argparse.ArgumentParser(
             prog="%s configure" % self.ctrl.progname,
             description=help)
@@ -648,6 +648,8 @@ class AnsibleConfigureCmd(object):
 
 
 class AnsibleVaultKeyCmd(object):
+    """Manage vault keys."""
+
     # Additional GPG parameters. Used for testing.
     gpg_opts = ()
 
@@ -658,7 +660,6 @@ class AnsibleVaultKeyCmd(object):
         return ('delete', 'export', 'generate', 'import', 'set')
 
     def __call__(self, argv, help):
-        """Manage vault keys."""
         parser = argparse.ArgumentParser(
             prog="%s vault-key" % self.ctrl.progname,
             description=help)
@@ -744,6 +745,7 @@ class AnsibleVaultKeyCmd(object):
 
 
 class AnsibleVaultCmd(object):
+    """Manage vault encrypted files."""
 
     def __init__(self, ctrl):
         self.ctrl = ctrl
@@ -752,7 +754,6 @@ class AnsibleVaultCmd(object):
         return ('create', 'decrypt', 'edit', 'encrypt', 'rekey')
 
     def __call__(self, argv, help):
-        """Manage vault encrypted files."""
         parser = argparse.ArgumentParser(
             prog="%s vault" % self.ctrl.progname,
             description=help)
