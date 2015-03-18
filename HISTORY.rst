@@ -4,6 +4,10 @@ Changelog
 1.2.5 - Unreleased
 ------------------
 
+* Added ``inventory`` command to list all known groups and their
+  associated hosts.
+  [fschulze]
+
 
 1.2.4 - 2015-02-28
 ------------------
