@@ -8,6 +8,7 @@ import sys
 from binascii import b2a_base64
 from lazy import lazy
 from ploy.common import yesno
+from operator import attrgetter
 from os.path import pathsep
 
 
@@ -647,6 +648,27 @@ class AnsibleConfigureCmd(object):
         instance.hooks.after_ansible_configure(instance)
 
 
+class AnsibleInventoryCmd(object):
+    """Print the inventory of all instances."""
+
+    def __init__(self, ctrl):
+        self.ctrl = ctrl
+
+    def __call__(self, argv, help):
+        parser = argparse.ArgumentParser(
+            prog="%s inventory" % self.ctrl.progname,
+            description=help)
+        parser.parse_args(argv)
+        inventory = _get_ansible_inventory(self.ctrl, self.ctrl.config)
+        groups = sorted(inventory.groups, key=attrgetter('name'))
+        for group in groups:
+            print group.name
+            hosts = sorted(group.hosts, key=attrgetter('name'))
+            for host in hosts:
+                print "    %s" % host.name
+            print
+
+
 class AnsibleVaultKeyCmd(object):
     """Manage vault keys."""
 
@@ -1026,11 +1048,19 @@ class AnsibleVariablesDict(dict):
         return template(self.basedir, dict.__getitem__(self, name), self, fail_on_undefined=True)
 
 
-def get_ansible_variables(self):
+def _get_ansible_inventory(ctrl, main_config):
     inject_ansible_paths()
     from ploy_ansible.inventory import Inventory
-    vault_password = get_vault_password_source(self.master.main_config).get(fail_on_error=False)
-    inventory = Inventory(self.master.ctrl, vault_password=vault_password)
+    vault_password = get_vault_password_source(main_config).get(fail_on_error=False)
+    return Inventory(ctrl, vault_password=vault_password)
+
+
+def get_ansible_inventory(self):
+    return _get_ansible_inventory(self.master.ctrl, self.master.main_config)
+
+
+def get_ansible_variables(self):
+    inventory = self.get_ansible_inventory()
     basedir = get_playbooks_directory(self.master.ctrl.config)
     result = AnsibleVariablesDict(inventory.get_variables(self.uid))
     result.basedir = basedir
@@ -1054,6 +1084,8 @@ def augment_instance(instance):
         instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'configure'):
         instance.configure = configure.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_ansible_inventory'):
+        instance.get_ansible_inventory = get_ansible_inventory.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_vault_lib'):
@@ -1065,6 +1097,7 @@ def get_commands(ctrl):
         ('ansible', AnsibleCmd(ctrl)),
         ('playbook', AnsiblePlaybookCmd(ctrl)),
         ('configure', AnsibleConfigureCmd(ctrl)),
+        ('inventory', AnsibleInventoryCmd(ctrl)),
         ('vault', AnsibleVaultCmd(ctrl)),
         ('vault-key', AnsibleVaultKeyCmd(ctrl))]
 
