@@ -1,6 +1,7 @@
 /.cache/
 /.coverage
 /.tox/
+/dev_venv/
 /dist/
 /htmlcov/
 /setuptools_git-*.egg
