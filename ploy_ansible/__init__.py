@@ -328,7 +328,7 @@ class AnsiblePlaybookCmd(object):
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
-        if ansible_version < (1, 9):
+        if not parser.has_option('--extra-vars'):
             parser.add_option(
                 '-e', '--extra-vars', dest="extra_vars", action="append",
                 help="set additional variables as key=value or YAML/JSON", default=[])
