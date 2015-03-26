@@ -890,9 +890,9 @@ class AnsibleVaultCmd(object):
 
 
 def connect_patch_factory(ctrl):
-    def connect_patch(self, host, port, user, password, transport, private_key_file):
+    def connect_patch(self, *args, **kwargs):
         self.runner._ploy_ctrl = ctrl
-        return self._ploy_orig_connect(host, port, user, password, transport, private_key_file)
+        return self._ploy_orig_connect(*args, **kwargs)
     return connect_patch
 
 
