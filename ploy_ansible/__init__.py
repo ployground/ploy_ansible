@@ -32,10 +32,10 @@ def inject_ansible_paths():
     except ImportError:
         log.error("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    if get_ansible_version() >= (1, 9):
+    if get_ansible_version() >= (1, 10):
         log.warn(
             "You are using an untested version %s of ansible. "
-            "The latest tested version is 1.8.X. "
+            "The latest tested version is 1.9.X. "
             "Any errors may be caused by that newer version." % ansible.__version__)
     extra_roles = []
     extra_library = []

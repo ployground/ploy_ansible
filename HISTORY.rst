@@ -4,6 +4,9 @@ Changelog
 1.2.5 - Unreleased
 ------------------
 
+* Fixes for changes in ansible 1.9.
+  [fschulze]
+
 * Added ``inventory`` command to list all known groups and their
   associated hosts.
   [fschulze]
