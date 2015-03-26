@@ -48,6 +48,7 @@ class Connection(object):
         self.host = host
         self.user = user
         self.has_pipelining = False
+        self.become_methods_supported = ['sudo']
         self._cache_key = (host, user)
 
     def connect(self):
@@ -77,25 +78,33 @@ class Connection(object):
         self.rpc = RPC_CACHE[self._cache_key]
         return self
 
-    def exec_command(self, cmd, tmp_path, sudo_user, sudoable=False, executable='/bin/sh', in_data=None, su=None, su_user=None):
-        if su or su_user:
+    def exec_command(self, cmd, tmp_path, become_user, **kwargs):
+        executable = kwargs.get('executable', '/bin/sh')
+        sudoable = kwargs.get('sudoable', False)
+        if 'su' in kwargs or 'su_user' in kwargs:
             raise errors.AnsibleError("Internal Error: this module does not support running commands via su")
 
-        if in_data:
+        if kwargs.get('in_data'):
             raise errors.AnsibleError("Internal Error: this module does not support optimized module pipelining")
 
+        if sudoable and getattr(self.runner, 'become', False) and self.runner.become_method not in self.become_methods_supported:
+            raise errors.AnsibleError("Internal Error: this module does not support running commands via %s" % self.runner.become_method)
+
+        become = getattr(self.runner, 'become', False) or getattr(self.runner, 'sudo', False)
         remote_cmd = []
-        if not self.runner.sudo or not sudoable:
+        if not become or not sudoable:
             if executable:
                 remote_cmd.append(executable + ' -c ' + pipes.quote(cmd))
             else:
                 remote_cmd.append(cmd)
         else:
-            if hasattr(self.runner, 'sudo_exe'):
-                sudocmd, prompt, success_key = utils.make_sudo_cmd(self.runner.sudo_exe, sudo_user, executable, cmd)
+            if hasattr(self.runner, 'become_exe'):
+                becomecmd, prompt, success_key = utils.make_become_cmd(cmd, become_user, executable, self.runner.become_method, '', self.runner.become_exe)
+            elif hasattr(self.runner, 'sudo_exe'):
+                becomecmd, prompt, success_key = utils.make_sudo_cmd(self.runner.sudo_exe, become_user, executable, cmd)
             else:
-                sudocmd, prompt, success_key = utils.make_sudo_cmd(sudo_user, executable, cmd)
-            remote_cmd.append(sudocmd)
+                becomecmd, prompt, success_key = utils.make_sudo_cmd(become_user, executable, cmd)
+            remote_cmd.append(becomecmd)
         remote_cmd = ' '.join(remote_cmd)
         vvv("execnet exec_command %r" % remote_cmd)
         rc, stdout, stderr = self.rpc.exec_command(remote_cmd)

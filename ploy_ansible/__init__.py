@@ -32,10 +32,10 @@ def inject_ansible_paths():
     except ImportError:
         log.error("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    if get_ansible_version() >= (1, 9):
+    if get_ansible_version() >= (1, 10):
         log.warn(
             "You are using an untested version %s of ansible. "
-            "The latest tested version is 1.8.X. "
+            "The latest tested version is 1.9.X. "
             "Any errors may be caused by that newer version." % ansible.__version__)
     extra_roles = []
     extra_library = []
@@ -168,13 +168,17 @@ class AnsibleCmd(object):
             parser.print_help()
             sys.exit(1)
 
-        # su and sudo command line arguments need to be mutually exclusive
-        if (hasattr(options, 'su')
-                and (options.su or options.su_user or options.ask_su_pass)
-                and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
-            parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
-                         "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
-                         "mutually exclusive")
+        if hasattr(options, 'become_ask_pass'):
+            # privlege escalation command line arguments need to be mutually exclusive
+            utils.check_mutually_exclusive_privilege(options, parser)
+        else:
+            # su and sudo command line arguments need to be mutually exclusive
+            if (hasattr(options, 'su')
+                    and (options.su or options.su_user or options.ask_su_pass)
+                    and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
+                parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
+                             "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
+                             "mutually exclusive")
 
         if hasattr(options, 'ask_vault_pass') and (options.ask_vault_pass and options.vault_password_file):
                 parser.error("--ask-vault-pass and --vault-password-file are mutually exclusive")
@@ -183,25 +187,36 @@ class AnsibleCmd(object):
         cbs.options = options
         pattern = args[0]
         patch_connect(self.ctrl)
-        sudopass = None
-        su_pass = None
         vault_pass = None
         kw = {}
-        options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
-        kw['ask_sudo_pass'] = options.ask_sudo_pass
-        if hasattr(options, 'ask_su_pass'):
-            options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
-            kw['ask_su_pass'] = options.ask_sudo_pass
+        if hasattr(options, 'become_ask_pass'):
+            becomepass = None
+            become_method = None
+            utils.normalize_become_options(options)
+            become_method = utils.choose_pass_prompt(options)
+            kw['become_ask_pass'] = options.become_ask_pass
+            kw['become_method'] = become_method
+        else:
+            sudopass = None
+            su_pass = None
+            options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
+            kw['ask_sudo_pass'] = options.ask_sudo_pass
+            if hasattr(options, 'ask_su_pass'):
+                options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
+                kw['ask_su_pass'] = options.ask_sudo_pass
         if hasattr(options, 'ask_vault_pass'):
             options.ask_vault_pass = options.ask_vault_pass or C.DEFAULT_ASK_VAULT_PASS
             kw['ask_vault_pass'] = options.ask_vault_pass
         passwds = utils.ask_passwords(**kw)
-        if len(passwds) == 2:
-            (sshpass, sudopass) = passwds
-        elif len(passwds) == 3:
-            (sshpass, sudopass, su_pass) = passwds
+        if hasattr(options, 'become_ask_pass'):
+            (sshpass, becomepass, vault_pass) = passwds
         else:
-            (sshpass, sudopass, su_pass, vault_pass) = passwds
+            if len(passwds) == 2:
+                (sshpass, sudopass) = passwds
+            elif len(passwds) == 3:
+                (sshpass, sudopass, su_pass) = passwds
+            else:
+                (sshpass, sudopass, su_pass, vault_pass) = passwds
         if VaultLib is not None and vault_pass is None:
             vault_pass = get_vault_password_source(self.ctrl.config).get()
         if getattr(options, 'vault_password_file', None):
@@ -227,26 +242,35 @@ class AnsibleCmd(object):
             for host in hosts:
                 callbacks.display('    %s' % host)
             sys.exit(0)
-        if ((options.module_name == 'command' or options.module_name == 'shell')
-                and not options.module_args):
+        if options.module_name in ['command', 'shell'] and not options.module_args:
             callbacks.display("No argument passed to %s module" % options.module_name, color='red', stderr=True)
             sys.exit(1)
 
-        if options.sudo_user or options.ask_sudo_pass:
-            options.sudo = True
-        options.sudo_user = options.sudo_user or C.DEFAULT_SUDO_USER
-        if hasattr(options, 'su'):
-            if options.su_user or options.ask_su_pass:
-                options.su = True
-            options.su_user = options.su_user or C.DEFAULT_SU_USER
+        if not hasattr(options, 'become_ask_pass'):
+            if options.sudo_user or options.ask_sudo_pass:
+                options.sudo = True
+            options.sudo_user = options.sudo_user or C.DEFAULT_SUDO_USER
+            if hasattr(options, 'su'):
+                if options.su_user or options.ask_su_pass:
+                    options.su = True
+                options.su_user = options.su_user or C.DEFAULT_SU_USER
         if options.tree:
             utils.prepare_writeable_dir(options.tree)
         kw = {}
-        if hasattr(options, 'su'):
-            kw['su'] = options.su
-            kw['su_user'] = options.su_user
-        if hasattr(options, 'su_pass'):
-            kw['su_pass'] = options.su_pass
+        if hasattr(options, 'become_ask_pass'):
+            kw['become'] = options.become
+            kw['become_method'] = options.become_method
+            kw['become_pass'] = becomepass
+            kw['become_user'] = options.become_user
+        else:
+            if hasattr(options, 'su'):
+                kw['su'] = options.su
+                kw['su_user'] = options.su_user
+            if hasattr(options, 'su_pass'):
+                kw['su_pass'] = options.su_pass
+            kw['sudo'] = options.sudo
+            kw['sudo_user'] = options.sudo_user
+            kw['sudo_pass'] = sudopass
         if vault_pass:
             kw['vault_pass'] = vault_pass
         runner = Runner(
@@ -260,9 +284,6 @@ class AnsibleCmd(object):
             forks=options.forks,
             pattern=pattern,
             callbacks=cbs,
-            sudo=options.sudo,
-            sudo_pass=sudopass,
-            sudo_user=options.sudo_user,
             transport='ssh',
             subset=options.subset,
             check=options.check,
@@ -328,7 +349,7 @@ class AnsiblePlaybookCmd(object):
         )
         parser.remove_option('-i')
         parser.remove_option('-k')
-        if ansible_version < (1, 9):
+        if not parser.has_option('--extra-vars'):
             parser.add_option(
                 '-e', '--extra-vars', dest="extra_vars", action="append",
                 help="set additional variables as key=value or YAML/JSON", default=[])
@@ -361,13 +382,17 @@ class AnsiblePlaybookCmd(object):
             parser.print_help(file=sys.stderr)
             sys.exit(1)
 
-        # su and sudo command line arguments need to be mutually exclusive
-        if (hasattr(options, 'su')
-                and (options.su or options.su_user or options.ask_su_pass)
-                and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
-            parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
-                         "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
-                         "mutually exclusive")
+        if hasattr(options, 'become_ask_pass'):
+            # privlege escalation command line arguments need to be mutually exclusive
+            utils.check_mutually_exclusive_privilege(options, parser)
+        else:
+            # su and sudo command line arguments need to be mutually exclusive
+            if (hasattr(options, 'su')
+                    and (options.su or options.su_user or options.ask_su_pass)
+                    and (options.sudo or options.sudo_user or options.ask_sudo_pass)):
+                parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
+                             "and su arguments ('-su', '--su-user', and '--ask-su-pass') are "
+                             "mutually exclusive")
 
         if hasattr(options, 'ask_vault_pass') and (options.ask_vault_pass and options.vault_password_file):
                 parser.error("--ask-vault-pass and --vault-password-file are mutually exclusive")
@@ -391,26 +416,38 @@ class AnsiblePlaybookCmd(object):
 
         try:
             patch_connect(self.ctrl)
-            sudopass = None
-            su_pass = None
+            if hasattr(options, 'become_ask_pass'):
+                becomepass = None
+            else:
+                sudopass = None
+                su_pass = None
             vault_pass = None
             if not options.listhosts and not options.syntax and not options.listtasks:
                 kw = {}
-                options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
-                kw['ask_sudo_pass'] = options.ask_sudo_pass
-                if hasattr(options, 'ask_su_pass'):
-                    options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
-                    kw['ask_su_pass'] = options.ask_sudo_pass
+                if hasattr(options, 'become_ask_pass'):
+                    utils.normalize_become_options(options)
+                    become_method = utils.choose_pass_prompt(options)
+                    kw['become_ask_pass'] = options.become_ask_pass
+                    kw['become_method'] = become_method
+                else:
+                    options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
+                    kw['ask_sudo_pass'] = options.ask_sudo_pass
+                    if hasattr(options, 'ask_su_pass'):
+                        options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
+                        kw['ask_su_pass'] = options.ask_sudo_pass
                 if hasattr(options, 'ask_vault_pass'):
                     options.ask_vault_pass = options.ask_vault_pass or C.DEFAULT_ASK_VAULT_PASS
                     kw['ask_vault_pass'] = options.ask_vault_pass
                 passwds = utils.ask_passwords(**kw)
-                if len(passwds) == 2:
-                    (sshpass, sudopass) = passwds
-                elif len(passwds) == 3:
-                    (sshpass, sudopass, su_pass) = passwds
+                if hasattr(options, 'become_ask_pass'):
+                    (sshpass, becomepass, vault_pass) = passwds
                 else:
-                    (sshpass, sudopass, su_pass, vault_pass) = passwds
+                    if len(passwds) == 2:
+                        (sshpass, sudopass) = passwds
+                    elif len(passwds) == 3:
+                        (sshpass, sudopass, su_pass) = passwds
+                    else:
+                        (sshpass, sudopass, su_pass, vault_pass) = passwds
                 if VaultLib is not None and vault_pass is None:
                     vault_pass = get_vault_password_source(self.ctrl.config).get()
                 if options.sudo_user or options.ask_sudo_pass:
@@ -458,11 +495,20 @@ class AnsiblePlaybookCmd(object):
                 runner_cb = callbacks.PlaybookRunnerCallbacks(stats, verbose=utils.VERBOSITY)
 
                 kw = {}
-                if hasattr(options, 'su'):
-                    kw['su'] = options.su
-                    kw['su_user'] = options.su_user
-                if hasattr(options, 'su_pass'):
-                    kw['su_pass'] = options.su_pass
+                if hasattr(options, 'become_ask_pass'):
+                    kw['become'] = options.become
+                    kw['become_method'] = options.become_method
+                    kw['become_pass'] = becomepass
+                    kw['become_user'] = options.become_user
+                else:
+                    if hasattr(options, 'su'):
+                        kw['su'] = options.su
+                        kw['su_user'] = options.su_user
+                    if hasattr(options, 'su_pass'):
+                        kw['su_pass'] = options.su_pass
+                    kw['sudo'] = options.sudo
+                    kw['sudo_user'] = options.sudo_user
+                    kw['sudo_pass'] = sudopass
                 if vault_pass:
                     kw['vault_password'] = vault_pass
                 if hasattr(options, 'force_handlers'):
@@ -478,9 +524,6 @@ class AnsiblePlaybookCmd(object):
                     stats=stats,
                     timeout=options.timeout,
                     transport=options.connection,
-                    sudo=options.sudo,
-                    sudo_user=options.sudo_user,
-                    sudo_pass=sudopass,
                     extra_vars=extra_vars,
                     private_key_file=options.private_key_file,
                     only_tags=only_tags,
@@ -890,9 +933,9 @@ class AnsibleVaultCmd(object):
 
 
 def connect_patch_factory(ctrl):
-    def connect_patch(self, host, port, user, password, transport, private_key_file):
+    def connect_patch(self, *args, **kwargs):
         self.runner._ploy_ctrl = ctrl
-        return self._ploy_orig_connect(host, port, user, password, transport, private_key_file)
+        return self._ploy_orig_connect(*args, **kwargs)
     return connect_patch
 
 
