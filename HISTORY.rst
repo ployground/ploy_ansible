@@ -4,6 +4,10 @@ Changelog
 1.3.0 - Unreleased
 ------------------
 
+* Added handling of ``groups`` option of instances to allow definition of
+  additional Ansible groups.
+  [fschulze]
+
 * Get host variables on demand instead of at startup. If you have many hosts
   with encrypted yml files, this speeds things up considerably in most cases.
   [fschulze]

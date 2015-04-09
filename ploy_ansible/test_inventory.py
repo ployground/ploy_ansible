@@ -38,3 +38,24 @@ def test_inventory_yml_vars(ctrl, ployconf, tempdir):
     assert variables['blubber'] == 'bla'
     assert variables['ham'] == 'egg'
     assert variables['ploy_test'] == '1'
+
+
+def test_inventory_groups(ctrl, ployconf, tempdir):
+    ctrl.configfile = ployconf.path
+    ployconf.fill([
+        '[dummy-instance:foo]',
+        'test = 1',
+        'groups = foo bar'])
+    tempdir['group_vars/foo.yml'].fill([
+        '---',
+        'ham: egg'])
+    tempdir['group_vars/bar.yml'].fill([
+        '---',
+        'blubber: bla'])
+    inventory = Inventory(ctrl)
+    variables = inventory.get_variables('default-foo')
+    assert set(variables).intersection(('blubber', 'ham', 'ploy_test')) == set(
+        ('blubber', 'ham', 'ploy_test'))
+    assert variables['blubber'] == 'bla'
+    assert variables['ham'] == 'egg'
+    assert variables['ploy_test'] == '1'

@@ -59,7 +59,6 @@ class Inventory(BaseInventory):
             kwargs['vault_password'] = vault_password
         BaseInventory.__init__(self, **kwargs)
         self.ctrl = ctrl
-        self.set_playbook_basedir(get_playbooks_directory(ctrl.config))
         groups = {}
         groups['all'] = self.get_group('all')
         seen = set()
@@ -75,6 +74,7 @@ class Inventory(BaseInventory):
                     add_to.append('masters')
                 else:
                     add_to.append('%s-instances' % master.id)
+            add_to.extend(instance.config.get('groups', '').split())
             for group in add_to:
                 g = groups.get(group)
                 if g is None:
@@ -87,6 +87,7 @@ class Inventory(BaseInventory):
         self._vars_plugins = [x for x in utils.plugins.vars_loader.all(self)]
         self._hosts_cache.clear()
         self._pattern_cache.clear()
+        self.set_playbook_basedir(get_playbooks_directory(ctrl.config))
 
     def get_variables(self, hostname, **kwargs):
         result = BaseInventory.get_variables(self, hostname, **kwargs)

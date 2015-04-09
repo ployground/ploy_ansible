@@ -107,6 +107,9 @@ For easy exchange with other developers, you can also export and import the key 
 Per instance
 ------------
 
+``groups``
+  Whitespace separated list of Ansible group names this instance should be added to in addition to the default ones.
+
 ``roles``
   Used by the ``configure`` command.
   This allows you to configure an instance by applying the whitespace separated roles.
