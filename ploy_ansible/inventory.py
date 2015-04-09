@@ -25,9 +25,11 @@ class Host(BaseHost):
         BaseHost.__init__(self, name)
         self.ctrl = ctrl
 
-    def get_variables(self):
+    @property
+    def vars(self):
         instance = self.ctrl.instances[self.name]
         results = dict(
+            self._ploy_vars,
             ansible_connection='execnet_connection',
             ansible_ssh_user=instance.config.get('user', 'root'),
             _ploy_instance=instance,
@@ -42,14 +44,11 @@ class Host(BaseHost):
             else:
                 results['ploy_%s' % k.replace('-', '_')] = v
                 results['awsome_%s' % k.replace('-', '_')] = v
-        groups = self.get_groups()
-        for group in sorted(groups, key=lambda g: g.depth):
-            results = utils.combine_vars(results, group.get_variables())
-        results = utils.combine_vars(results, self.vars)
-        results['inventory_hostname'] = self.name
-        results['inventory_hostname_short'] = self.name.split('.')[0]
-        results['group_names'] = sorted([g.name for g in groups if g.name != 'all'])
         return results
+
+    @vars.setter
+    def vars(self, value):
+        self._ploy_vars = value
 
 
 class Inventory(BaseInventory):
@@ -88,12 +87,12 @@ class Inventory(BaseInventory):
         self._vars_plugins = [x for x in utils.plugins.vars_loader.all(self)]
         self._hosts_cache.clear()
         self._pattern_cache.clear()
-        if hasattr(self, 'get_host_variables'):
-            for host in self.get_hosts():
-                host.vars = utils.combine_vars(
-                    host.vars,
-                    self.get_host_variables(
-                        host.name, vault_password=self._vault_password))
 
     def get_variables(self, hostname, **kwargs):
-        return PloyInventoryDict(BaseInventory.get_variables(self, hostname, **kwargs))
+        result = BaseInventory.get_variables(self, hostname, **kwargs)
+        if hasattr(self, 'get_host_variables'):
+            result = utils.combine_vars(
+                result,
+                self.get_host_variables(
+                    hostname, vault_password=self._vault_password))
+        return PloyInventoryDict(result)
