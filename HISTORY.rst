@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.3.0 - Unreleased
+1.3.0 - 2015-04-10
 ------------------
 
 * Added handling of ``groups`` option of instances to allow definition of
