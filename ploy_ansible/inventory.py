@@ -83,7 +83,8 @@ class Inventory(BaseInventory):
                         g = Group(group)
                         self.add_group(g)
                     groups[group] = g
-                g.add_host(h)
+                if h not in g.hosts:
+                    g.add_host(h)
         self._vars_plugins = [x for x in utils.plugins.vars_loader.all(self)]
         self._hosts_cache.clear()
         self._pattern_cache.clear()

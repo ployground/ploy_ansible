@@ -4,6 +4,8 @@ Changelog
 1.3.1 - Unreleased
 ------------------
 
+* Add hosts only once in Inventory.
+  [fschulze]
 
 
 1.3.0 - 2015-04-10
