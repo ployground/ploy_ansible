@@ -21,7 +21,7 @@ install_requires = [
 try:
     import ansible  # noqa
 except ImportError:
-    install_requires.append('ansible>=1.8.0')
+    install_requires.append('ansible>=1.8.0,<2.dev0')
 
 
 setup(

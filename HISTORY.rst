@@ -4,6 +4,10 @@ Changelog
 1.3.1 - Unreleased
 ------------------
 
+* Update Ansible requirement to < 2.dev0. The upcoming 2.0.0 has way too many
+  internal changes to be supported.
+  [fschulze]
+
 * Add hosts only once in Inventory.
   [fschulze]
 
