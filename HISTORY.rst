@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.3.1 - Unreleased
+1.3.1 - 2015-09-03
 ------------------
 
 * Update Ansible requirement to < 2.dev0. The upcoming 2.0.0 has way too many
