@@ -173,10 +173,9 @@ def test_configure_group(ctrl, monkeypatch, ployconf, tempdir):
     with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
         ctrl(['./bin/ploy', 'configure', '-g', 'all'])
     assert runmock.called
-    playbooks = [x[0][0].playbook for x in runmock.call_args_list]
-    assert len(playbooks) == 2
-    assert playbooks[0][0]['hosts'] == ['default-bar']
-    assert playbooks[1][0]['hosts'] == ['default-foo']
+    hosts = [x[0][0].playbook[0]['hosts'] for x in runmock.call_args_list]
+    assert [len(x) for x in hosts] == [1, 1]
+    assert sorted([x[0] for x in hosts]) == ['default-bar', 'default-foo']
 
 
 def test_playbook_without_args(ctrl):
