@@ -16,7 +16,7 @@ def test_configure_without_args(ctrl):
             ctrl(['./bin/ploy', 'configure'])
     output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
     assert 'usage: ploy configure' in output
-    assert 'too few arguments' in output
+    assert 'one of the arguments -g/--group instance is required' in output
 
 
 def test_configure_with_nonexisting_instance(ctrl):
@@ -157,6 +157,26 @@ def test_configure_with_extra_vars(ctrl, monkeypatch, tempdir):
         ctrl(['./bin/ploy', 'configure', 'foo', '-e', 'foo=bar', '-e', 'bar=foo'])
     assert runmock.called
     assert runmock.call_args[0][0].extra_vars == dict(foo='bar', bar='foo')
+
+
+def test_configure_group(ctrl, monkeypatch, ployconf, tempdir):
+    import ansible.playbook
+    ployconf.fill([
+        '[dummy-instance:bar]',
+        '[dummy-instance:foo]'])
+    tempdir['default-foo.yml'].fill([
+        '---',
+        '- hosts: default-foo'])
+    tempdir['default-bar.yml'].fill([
+        '---',
+        '- hosts: default-bar'])
+    with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
+        ctrl(['./bin/ploy', 'configure', '-g', 'all'])
+    assert runmock.called
+    playbooks = [x[0][0].playbook for x in runmock.call_args_list]
+    assert len(playbooks) == 2
+    assert playbooks[0][0]['hosts'] == ['default-bar']
+    assert playbooks[1][0]['hosts'] == ['default-foo']
 
 
 def test_playbook_without_args(ctrl):
