@@ -26,6 +26,7 @@ The plugin adds the following commands to ploy.
   Applying the roles given by the ``roles`` option of an instance, a playbook set by the ``playbook`` option or a playbook with the unique name of the instance found in the ``playbooks-directory``.
   Using ``roles`` or a playbook is mutually exclusive.
   If you specify a playbook and there is also a playbook in the default location, you will get a warning.
+  Alternatively you can specify the ``-g/--group`` option to configure all members of the given group.
 
 ``inventory``
   Lists all known groups and their associated hosts, including regular default groups, such as ``all`` but also implicit, ``ploy_ansible`` groups such as instances of a particular ``master`` (i.e. all ``ez-instances`` of an ``ez-master``) 
