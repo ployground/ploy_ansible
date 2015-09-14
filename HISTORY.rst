@@ -1,9 +1,12 @@
 Changelog
 =========
 
-1.3.2 - Unreleased
+1.4.0 - Unreleased
 ------------------
 
+* Add ``-g/--group`` option to ``configure`` command to configure all instances
+  in a group.
+  [fschulze]
 
 
 1.3.1 - 2015-09-03

@@ -648,6 +648,8 @@ class AnsibleConfigureCmd(object):
         return sorted(instances)
 
     def __call__(self, argv, help):
+        inventory = _get_ansible_inventory(self.ctrl, self.ctrl.config)
+        groups = inventory.groups_list()
         parser = argparse.ArgumentParser(
             prog="%s configure" % self.ctrl.progname,
             description=help)
@@ -669,26 +671,39 @@ class AnsibleConfigureCmd(object):
             action="append",
             default=[],
             help="set additional variables as key=value or YAML/JSON")
-        parser.add_argument(
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument(
+            '-g', '--group',
+            nargs='?',
+            metavar="group",
+            help="Name of an ansible group.",
+            choices=list(groups))
+        group.add_argument(
             "instance",
-            nargs=1,
+            nargs='?',
             metavar="instance",
             help="Name of the instance from the config.",
             choices=self.get_completion())
         args = parser.parse_args(argv)
-        instance = self.ctrl.instances[args.instance[0]]
+        instances = []
+        if args.instance is not None:
+            instances.append(self.ctrl.instances[args.instance])
+        else:
+            for name in groups[args.group]:
+                instances.append(self.ctrl.instances[name])
         only_tags = args.only_tags.split(",")
         skip_tags = args.skip_tags
         if skip_tags is not None:
             skip_tags = skip_tags.split(",")
         extra_vars = parse_extra_vars(args.extra_vars)
-        instance.hooks.before_ansible_configure(instance)
-        instance.configure(
-            only_tags=only_tags,
-            skip_tags=skip_tags,
-            extra_vars=extra_vars,
-            verbosity=args.verbose)
-        instance.hooks.after_ansible_configure(instance)
+        for instance in instances:
+            instance.hooks.before_ansible_configure(instance)
+            instance.configure(
+                only_tags=only_tags,
+                skip_tags=skip_tags,
+                extra_vars=extra_vars,
+                verbosity=args.verbose)
+            instance.hooks.after_ansible_configure(instance)
 
 
 class AnsibleInventoryCmd(object):
