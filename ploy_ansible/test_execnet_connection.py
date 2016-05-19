@@ -1,4 +1,4 @@
-from mock import MagicMock
+from __future__ import unicode_literals
 import pytest
 
 
@@ -28,13 +28,14 @@ def rpc():
     return RPC()
 
 
-def test_execnet_connection(ctrl, monkeypatch):
+def test_execnet_connection(ctrl, mock, monkeypatch):
     import tempfile
-    init_ssh_key_mock = MagicMock()
+    init_ssh_key_mock = mock.MagicMock()
     init_ssh_key_mock.return_value = dict()
     monkeypatch.setattr(
         "ploy.tests.dummy_plugin.Instance.init_ssh_key", init_ssh_key_mock)
-    makegateway_mock = MagicMock()
+    monkeypatch.setattr("ploy_ansible.RPC_CACHE", {})
+    makegateway_mock = mock.MagicMock()
     monkeypatch.setattr("execnet.makegateway", makegateway_mock)
     channel_mock = makegateway_mock().remote_exec()
     channel_mock.receive.side_effect = [
@@ -56,14 +57,14 @@ def test_execnet_connection(ctrl, monkeypatch):
     (dict(host='foo', port=22), ['-p', '22', 'foo']),
     (dict(host='foo', port=22, ProxyCommand='ssh master -W 10.0.0.1'),
      ['-o', 'ProxyCommand=ssh master -W 10.0.0.1', '-p', '22', 'foo'])])
-def test_execnet_ssh_spec(conn, ctrl, ployconf, runner, monkeypatch, ssh_info, expected):
-    runner.inventory = MagicMock()
-    init_ssh_key_mock = MagicMock()
+def test_execnet_ssh_spec(conn, ctrl, mock, ployconf, runner, monkeypatch, ssh_info, expected):
+    runner.inventory = mock.MagicMock()
+    init_ssh_key_mock = mock.MagicMock()
     init_ssh_key_mock.return_value = ssh_info
-    monkeypatch.setattr("ploy_ansible.execnet_connection.RPC_CACHE", {})
+    monkeypatch.setattr("ploy_ansible.RPC_CACHE", {})
     monkeypatch.setattr(
         "ploy.tests.dummy_plugin.Instance.init_ssh_key", init_ssh_key_mock)
-    makegateway_mock = MagicMock()
+    makegateway_mock = mock.MagicMock()
     monkeypatch.setattr("execnet.makegateway", makegateway_mock)
     conn.connect()
     call, = makegateway_mock.call_args_list

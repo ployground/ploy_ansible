@@ -7,12 +7,12 @@ README = open(os.path.join(here, 'README.rst')).read()
 HISTORY = open(os.path.join(here, 'HISTORY.rst')).read()
 
 
-version = "1.4.0"
+version = "2.0.0.dev0"
 
 
 install_requires = [
     'setuptools',
-    'ploy >= 1.0.0, < 2dev',
+    'ploy >= 2dev',
     'execnet']
 
 
@@ -36,7 +36,6 @@ setup(
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: System Administrators',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 2 :: Only',
         'Topic :: System :: Installation/Setup',
@@ -45,6 +44,7 @@ setup(
     zip_safe=False,
     packages=['ploy_ansible'],
     install_requires=install_requires,
+    python_requires='>=2.7, <3.0',
     entry_points="""
         [ansible_paths]
         ploy_ansible = ploy_ansible:ansible_paths

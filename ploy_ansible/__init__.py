@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import argparse
 import getpass
 import logging
@@ -7,12 +8,13 @@ import subprocess
 import sys
 from binascii import b2a_base64
 from lazy import lazy
-from ploy.common import yesno
+from ploy.common import sorted_choices, yesno
 from operator import attrgetter
 from os.path import pathsep
 
 
 log = logging.getLogger('ploy_ansible')
+RPC_CACHE = {}
 
 
 ansible_paths = dict(
@@ -647,7 +649,7 @@ class AnsibleConfigureCmd(object):
         for instance in self.ctrl.instances:
             if self.ctrl.instances[instance].has_playbook():
                 instances.add(instance)
-        return sorted(instances)
+        return sorted_choices(instances)
 
     def __call__(self, argv, help):
         parser = argparse.ArgumentParser(
@@ -676,6 +678,7 @@ class AnsibleConfigureCmd(object):
             nargs=1,
             metavar="instance",
             help="Name of the instance from the config.",
+            type=str,
             choices=self.get_completion())
         args = parser.parse_args(argv)
         instance = self.ctrl.instances[args.instance[0]]
@@ -994,7 +997,8 @@ def get_playbook(self, *args, **kwargs):
             if self.roles is not None:
                 if isinstance(self.roles, basestring):
                     self.roles = self.roles.split()
-                kwargs['playbook'] = '<dynamically generated from %s>' % self.roles
+                roles = "[%s]" % ', '.join("'%s'" % x for x in self.roles)
+                kwargs['playbook'] = '<dynamically generated from %s>' % roles
             ansible.playbook.PlayBook.__init__(self, *args, **kwargs)
             self.basedir = playbooks_directory
 
@@ -1153,7 +1157,8 @@ def get_massagers():
     from ploy.config import PathMassager
     return [
         PathMassager('ansible', 'playbooks-directory'),
-        PathMassager('global', 'playbooks-directory')]
+        PathMassager('global', 'playbooks-directory'),
+        PathMassager(None, 'playbook')]
 
 
 plugin = dict(
