@@ -52,11 +52,13 @@ def inject_ansible_paths():
     roles = list(extra_roles)
     if C.DEFAULT_ROLES_PATH is not None:
         roles.append(C.DEFAULT_ROLES_PATH)
-    C.DEFAULT_ROLES_PATH = pathsep.join(roles)
+    if roles:
+        C.DEFAULT_ROLES_PATH = pathsep.join(roles)
     library = list(extra_library)
     if C.DEFAULT_MODULE_PATH is not None:
         library.append(C.DEFAULT_MODULE_PATH)
-    C.DEFAULT_MODULE_PATH = pathsep.join(library)
+    if library:
+        C.DEFAULT_MODULE_PATH = pathsep.join(library)
     for attr in extra_plugins:
         setattr(C, attr, pathsep.join([pathsep.join(extra_plugins[attr]), getattr(C, attr)]))
 

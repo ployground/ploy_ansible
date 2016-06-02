@@ -1,9 +1,12 @@
 Changelog
 =========
 
-1.3.2 - Unreleased
+1.3.2 - 2016-06-02
 ------------------
 
+* Don't add empty search path when no additional role or library paths are
+  defined. This prevents the current working directory from being searched.
+  [fschulze]
 
 
 1.3.1 - 2015-09-03
