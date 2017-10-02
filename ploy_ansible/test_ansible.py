@@ -101,7 +101,7 @@ def test_configure_playbook_option_shadowing(ctrl, ployconf, caplog, tempdir):
         ctrl(['./bin/ploy', 'configure', 'foo'])
     assert runmock.called
     assert runmock.call_args[0][0].filename == yml_bar.path
-    assert [x.message for x in caplog.records()] == [
+    assert [x.message for x in caplog.records] == [
         "Instance 'dummy-instance:foo' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (yml_foo.path, yml_bar.path),
         "Using playbook at '%s'." % yml_bar.path]
 
@@ -127,7 +127,7 @@ def test_configure_roles_default_playbook_conflict(ctrl, ployconf, caplog, tempd
         'roles = ham egg'])
     with pytest.raises(SystemExit):
         ctrl(['./bin/ploy', 'configure', 'foo'])
-    assert [x.message for x in caplog.records()] == [
+    assert [x.message for x in caplog.records] == [
         "Using playbook at '%s'." % yml.path,
         "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
 
@@ -143,7 +143,7 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
         'roles = ham egg'])
     with pytest.raises(SystemExit):
         ctrl(['./bin/ploy', 'configure', 'foo'])
-    assert [x.message for x in caplog.records()] == [
+    assert [x.message for x in caplog.records] == [
         "Using playbook at '%s'." % yml.path,
         "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
 

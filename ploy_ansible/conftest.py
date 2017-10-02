@@ -11,7 +11,7 @@ def caplog(caplog):
     def messages(self, level=logging.INFO):
         return [
             x.message
-            for x in self.records()
+            for x in self.records
             if x.levelno >= level]
     caplog.messages = messages.__get__(caplog, caplog.__class__)
     return caplog
