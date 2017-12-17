@@ -960,9 +960,10 @@ def patch_connect(ctrl):
 
 def has_playbook(self):
     playbooks_directory = get_playbooks_directory(self.master.main_config)
-    playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
-    if os.path.exists(playbook_path):
-        return True
+    for instance_id in (self.uid, self.id):
+        playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
+        if os.path.exists(playbook_path):
+            return True
     if 'playbook' in self.config:
         return True
     if 'roles' in self.config:
@@ -1014,9 +1015,10 @@ def get_playbook(self, *args, **kwargs):
     patch_connect(self.master.ctrl)
     playbook = kwargs.pop('playbook', None)
     if playbook is None:
-        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
-        if os.path.exists(playbook_path):
-            playbook = playbook_path
+        for instance_id in (self.uid, self.id):
+            playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
+            if os.path.exists(playbook_path):
+                playbook = playbook_path
         if 'playbook' in self.config:
             if playbook is not None and playbook != self.config['playbook']:
                 log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))

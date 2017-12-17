@@ -1,9 +1,12 @@
 Changelog
 =========
 
-1.3.3 - Unreleased
+1.4.0 - 2017-12-17
 ------------------
 
+* Look for ``[instance-name].yml`` in addition to ``[master-name]-[instance-name].yml``.
+  This allows using the same playbook for the same instance on multiple masters.
+  [fschulze]
 
 
 1.3.2 - 2016-06-02
