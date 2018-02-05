@@ -10,7 +10,6 @@ from binascii import b2a_base64
 from lazy import lazy
 from ploy.common import sorted_choices, yesno
 from operator import attrgetter
-from os.path import pathsep
 
 
 log = logging.getLogger('ploy_ansible')
@@ -35,6 +34,7 @@ def inject_ansible_paths():
             "You are using an untested version %s of ansible. "
             "The latest tested version is 2.4.X. "
             "Any errors may be caused by that newer version." % __version__)
+    # get the paths
     extra_roles = []
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
@@ -47,18 +47,11 @@ def inject_ansible_paths():
             plugin_path_name = 'DEFAULT_%s_PLUGIN_PATH' % key.upper()
             if plugin_path_name in plugin_path_names:
                 extra_plugins.setdefault(plugin_path_name, []).extend(pathinfo[key])
-    roles = list(extra_roles)
-    if C.DEFAULT_ROLES_PATH is not None:
-        roles.append(C.DEFAULT_ROLES_PATH)
-    if roles:
-        C.DEFAULT_ROLES_PATH = pathsep.join(roles)
-    library = list(extra_library)
-    if C.DEFAULT_MODULE_PATH is not None:
-        library.append(C.DEFAULT_MODULE_PATH)
-    if library:
-        C.DEFAULT_MODULE_PATH = pathsep.join(library)
+    # and inject the paths
+    C.DEFAULT_ROLES_PATH[0:0] = extra_roles
+    C.DEFAULT_MODULE_PATH[0:0] = extra_library
     for attr in extra_plugins:
-        setattr(C, attr, pathsep.join([pathsep.join(extra_plugins[attr]), getattr(C, attr)]))
+        getattr(C, attr)[0:0] = extra_plugins[attr]
 
 
 def get_playbooks_directory(main_config):
