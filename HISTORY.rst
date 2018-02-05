@@ -4,6 +4,9 @@ Changelog
 2.0.0 - Unreleased
 ------------------
 
+* Support ansible >= 2.4.0 and drop support for previous versions.
+  [fschulze]
+
 * Support for ploy 2.0.0.
   [fschulze]
 

@@ -11,17 +11,9 @@ version = "2.0.0.dev0"
 
 
 install_requires = [
-    'setuptools',
+    'ansible>=2.4',
     'ploy >= 2dev',
     'execnet']
-
-
-# workaround for installing via buildout, as ansible<1.8.0
-# violates its sandbox limitations
-try:
-    import ansible  # noqa
-except ImportError:
-    install_requires.append('ansible>=1.8.0,<2.dev0')
 
 
 setup(

@@ -21,24 +21,20 @@ ansible_paths = dict(
     lookup=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lookup_plugins')])
 
 
-def get_ansible_version():
-    from ansible import __version__
-    return tuple(int(x) for x in __version__.split('.'))
-
-
 def inject_ansible_paths():
     # collect and inject ansible paths (roles and library) from entrypoints
     try:
         import ansible.constants as C
-        import ansible
     except ImportError:
         log.error("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    if get_ansible_version() >= (1, 10):
+    dist = pkg_resources.get_distribution("ansible")
+    if dist.parsed_version >= pkg_resources.parse_version("2.5dev"):
+        from ansible import __version__
         log.warn(
             "You are using an untested version %s of ansible. "
-            "The latest tested version is 1.9.X. "
-            "Any errors may be caused by that newer version." % ansible.__version__)
+            "The latest tested version is 2.4.X. "
+            "Any errors may be caused by that newer version." % __version__)
     extra_roles = []
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
