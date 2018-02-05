@@ -159,43 +159,39 @@ def test_configure_with_extra_vars(ctrl, mock, monkeypatch, tempdir):
     assert runmock.call_args[0][0].extra_vars == dict(foo='bar', bar='foo')
 
 
-def test_playbook_without_args(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        StdErrMock.encoding = 'utf-8'
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'playbook'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'Usage: ploy playbook playbook.yml' in output
+def test_playbook_without_args(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'playbook'])
+    (out, err) = capsys.readouterr()
+    assert 'Usage:' in out
+    assert '[options] playbook.yml' in out
 
 
-def test_playbook_with_nonexisting_playbook(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'playbook', 'bar.yml'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert "the playbook: bar.yml could not be found" in output
+def test_playbook_with_nonexisting_playbook(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'playbook', 'bar.yml'])
+    (out, err) = capsys.readouterr()
+    assert "the playbook: bar.yml could not be found" in err
 
 
-def test_playbook_with_empty_yml(ctrl, mock, tempdir):
+def test_playbook_with_empty_yml(capsys, ctrl, mock, tempdir):
     yml = tempdir['foo.yml']
     yml.fill('')
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'playbook', yml.path])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'parse error: playbooks must be formatted as a YAML list' in output
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'playbook', yml.path])
+    (out, err) = capsys.readouterr()
+    assert 'playbooks must be a list of plays' in err
 
 
-def test_playbook_asks_when_no_host_in_yml(ctrl, mock, tempdir):
+def test_playbook_asks_when_no_host_in_yml(capsys, ctrl, mock, tempdir):
     yml = tempdir['foo.yml']
     yml.fill([
         '---',
         '- {}'])
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'playbook', yml.path])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'hosts declaration is required' in output
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'playbook', yml.path])
+    (out, err) = capsys.readouterr()
+    assert "'hosts' is required but was not set" in err
 
 
 def test_playbook(ctrl, mock, monkeypatch, tempdir):
@@ -204,34 +200,31 @@ def test_playbook(ctrl, mock, monkeypatch, tempdir):
         '---',
         '- hosts: foo'])
     runmock = mock.MagicMock()
-    monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
+    monkeypatch.setattr("ansible.cli.playbook.PlaybookCLI.run", runmock)
+    runmock.return_value = 0
     ctrl(['./bin/ploy', 'playbook', yml.path])
     assert runmock.called
 
 
-def test_ansible_without_args(ctrl, mock):
-    with mock.patch('sys.stdout') as StdOutMock:
-        StdOutMock.encoding = 'utf-8'
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'ansible'])
-    output = "".join(x[0][0] for x in StdOutMock.write.call_args_list)
-    assert 'Usage: ploy ansible' in output
+def test_ansible_without_args(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'ansible'])
+    (out, err) = capsys.readouterr()
+    assert 'Usage: ' in out
+    assert '<host-pattern> [options]' in out
 
 
-def test_ansible_with_nonexisting_instance(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'ansible', 'bar'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert "No hosts matched" in output
+def test_ansible_with_nonexisting_instance(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'ansible', 'bar'])
+    (out, err) = capsys.readouterr()
+    assert "No hosts matched" in err
 
 
 def test_ansible(ctrl, mock, monkeypatch):
     runmock = mock.MagicMock()
-    monkeypatch.setattr("ansible.runner.Runner.run", runmock)
-    runmock.return_value = dict(
-        contacted=dict(),
-        dark=[])
+    monkeypatch.setattr("ansible.cli.adhoc.AdHocCLI.run", runmock)
+    runmock.return_value = 0
     ctrl(['./bin/ploy', 'ansible', 'default-foo', '-a', 'ls'])
     assert runmock.called
 

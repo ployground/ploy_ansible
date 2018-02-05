@@ -12,8 +12,7 @@ version = "2.0.0.dev0"
 
 install_requires = [
     'ansible>=2.4',
-    'ploy >= 2dev',
-    'execnet']
+    'ploy >= 2dev']
 
 
 setup(
