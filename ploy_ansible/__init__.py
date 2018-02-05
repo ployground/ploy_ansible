@@ -9,7 +9,6 @@ import sys
 from binascii import b2a_base64
 from lazy import lazy
 from ploy.common import sorted_choices, yesno
-from operator import attrgetter
 
 
 log = logging.getLogger('ploy_ansible')
@@ -291,13 +290,13 @@ class AnsibleInventoryCmd(object):
             prog="%s inventory" % self.ctrl.progname,
             description=help)
         parser.parse_args(argv)
-        inventory = _get_ansible_inventory(self.ctrl, self.ctrl.config)
-        groups = sorted(inventory.groups, key=attrgetter('name'))
-        for group in groups:
-            print group.name
-            hosts = sorted(group.hosts, key=attrgetter('name'))
-            for host in hosts:
-                print "    %s" % host.name
+        inventory = _get_ansible_inventorymanager(self.ctrl, self.ctrl.config)
+        groups = inventory.get_groups_dict()
+        for groupname in sorted(groups):
+            print groupname
+            hosts = groups[groupname]
+            for hostname in sorted(hosts):
+                print "    %s" % hostname
             print
 
 
@@ -659,15 +658,15 @@ class AnsibleVariablesDict(dict):
         return template(self.basedir, dict.__getitem__(self, name), self, fail_on_undefined=True)
 
 
-def _get_ansible_inventory(ctrl, main_config):
-    inject_ansible_paths()
-    from ploy_ansible.inventory import Inventory
+def _get_ansible_inventorymanager(ctrl, main_config):
+    inject_ansible_paths(ctrl)
+    from ploy_ansible.inventory import InventoryManager
     vault_password = get_vault_password_source(main_config).get(fail_on_error=False)
-    return Inventory(ctrl, vault_password=vault_password)
+    return InventoryManager()
 
 
-def get_ansible_inventory(self):
-    return _get_ansible_inventory(self.master.ctrl, self.master.main_config)
+def get_ansible_inventorymanager(self):
+    return _get_ansible_inventorymanager(self.master.ctrl, self.master.main_config)
 
 
 def get_ansible_variables(self):
@@ -695,8 +694,8 @@ def augment_instance(instance):
         instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'configure'):
         instance.configure = configure.__get__(instance, instance.__class__)
-    if not hasattr(instance, 'get_ansible_inventory'):
-        instance.get_ansible_inventory = get_ansible_inventory.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_ansible_inventorymanager'):
+        instance.get_ansible_inventorymanager = get_ansible_inventorymanager.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_vault_lib'):
