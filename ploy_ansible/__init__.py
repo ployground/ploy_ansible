@@ -191,26 +191,6 @@ class AnsibleCmd(object):
         return run_cli(self.ctrl, 'ansible', 'adhoc', argv, myclass='AdHocCLI')
 
 
-def parse_extra_vars(extras, vault_pass=None):
-    inject_ansible_paths()
-    from ansible import utils
-    extra_vars = {}
-    for extra_vars_opt in extras:
-        if extra_vars_opt.startswith("@"):
-            # Argument is a YAML file (JSON is a subset of YAML)
-            kw = {}
-            if vault_pass:
-                kw['vault_password'] = vault_pass
-            extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml_from_file(extra_vars_opt[1:]), **kw)
-        elif extra_vars_opt and extra_vars_opt[0] in '[{':
-            # Arguments as YAML
-            extra_vars = utils.combine_vars(extra_vars, utils.parse_yaml(extra_vars_opt))
-        else:
-            # Arguments as Key-value
-            extra_vars = utils.combine_vars(extra_vars, utils.parse_kv(extra_vars_opt))
-    return extra_vars
-
-
 class AnsiblePlaybookCmd(object):
     """Run Ansible playbook"""
 
@@ -269,13 +249,17 @@ class AnsibleConfigureCmd(object):
         skip_tags = args.skip_tags
         if skip_tags is not None:
             skip_tags = skip_tags.split(",")
-        extra_vars = parse_extra_vars(args.extra_vars)
+        else:
+            skip_tags = []
+        inject_ansible_paths(self.ctrl)
+        display.verbosity = args.verbose
+        options = AnsibleOptions()
+        options.verbosity = args.verbose
+        options.only_tags = only_tags
+        options.skip_tags = skip_tags
+        options.extra_vars = args.extra_vars
         instance.hooks.before_ansible_configure(instance)
-        instance.configure(
-            only_tags=only_tags,
-            skip_tags=skip_tags,
-            extra_vars=extra_vars,
-            verbosity=args.verbose)
+        instance.configure(options=options)
         instance.hooks.after_ansible_configure(instance)
 
 
@@ -534,54 +518,17 @@ def has_playbook(self):
 
 
 def get_playbook(self, *args, **kwargs):
-    inject_ansible_paths()
-    import ansible.playbook
-    import ansible.callbacks
+    inject_ansible_paths(self.master.ctrl)
+    from ansible.playbook import Play, Playbook
     import ansible.errors
-    import ansible.utils
-    try:
-        from ansible.utils.vault import VaultLib
-    except ImportError:
-        VaultLib = None
-    from ploy_ansible.inventory import Inventory
 
-    host = self.uid
-    user = self.config.get('user', 'root')
-    sudo = self.config.get('sudo')
+    (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
     playbooks_directory = get_playbooks_directory(self.master.main_config)
-
-    class PlayBook(ansible.playbook.PlayBook):
-        def __init__(self, *args, **kwargs):
-            self.roles = kwargs.pop('roles', None)
-            if self.roles is not None:
-                if isinstance(self.roles, basestring):
-                    self.roles = self.roles.split()
-                roles = "[%s]" % ', '.join("'%s'" % x for x in self.roles)
-                kwargs['playbook'] = '<dynamically generated from %s>' % roles
-            ansible.playbook.PlayBook.__init__(self, *args, **kwargs)
-            self.basedir = playbooks_directory
-
-        def _load_playbook_from_file(self, *args, **kwargs):
-            if self.roles is None:
-                return ansible.playbook.PlayBook._load_playbook_from_file(
-                    self, *args, **kwargs)
-            settings = {
-                'hosts': [host],
-                'user': user,
-                'roles': self.roles}
-            if sudo is not None:
-                settings['sudo'] = sudo
-            return (
-                [settings],
-                [playbooks_directory])
-
-    patch_connect(self.master.ctrl)
     playbook = kwargs.pop('playbook', None)
     if playbook is None:
-        for instance_id in (self.uid, self.id):
-            playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
-            if os.path.exists(playbook_path):
-                playbook = playbook_path
+        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
+        if os.path.exists(playbook_path):
+            playbook = playbook_path
         if 'playbook' in self.config:
             if playbook is not None and playbook != self.config['playbook']:
                 log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))
@@ -594,62 +541,65 @@ def get_playbook(self, *args, **kwargs):
     if roles is not None and playbook is not None:
         log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.config_id)
         sys.exit(1)
-    stats = ansible.callbacks.AggregateStats()
-    callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
-    runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
+    if playbook is None and roles is None:
+        return []
     skip_host_check = kwargs.pop('skip_host_check', False)
-    if roles is None:
-        kwargs['playbook'] = playbook
-    else:
-        kwargs['roles'] = roles
-    if VaultLib is not None:
-        kwargs['vault_password'] = get_vault_password_source(self.master.main_config).get()
-    inventory = Inventory(self.master.ctrl, vault_password=kwargs.get('vault_password'))
     try:
-        pb = PlayBook(
-            *args,
-            callbacks=callbacks,
-            inventory=inventory,
-            runner_callbacks=runner_callbacks,
-            stats=stats,
-            **kwargs)
+        if roles is None:
+            pb = Playbook.load(playbook, variable_manager=variable_manager, loader=loader)
+            plays = pb.get_plays()
+        else:
+            if isinstance(roles, basestring):
+                roles = roles.split()
+            data = {
+                'hosts': [self.uid],
+                'roles': roles}
+            plays = [Play.load(data, variable_manager=variable_manager, loader=loader)]
+            pb = Playbook(loader=loader)
+            pb._entries.extend(plays)
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
-    for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
-        if 'user' not in play_ds:
-            play_ds['user'] = self.config.get('user', 'root')
+    for play in plays:
+        if play._attributes.get('remote_user') is None:
+            play._attributes['remote_user'] = self.config.get('user', 'root')
+        if self.config.get('sudo'):
+            play._attributes['sudo'] = self.config.get('sudo')
         if not skip_host_check:
-            hosts = play_ds.get('hosts', '')
+            hosts = play._attributes.get('hosts', None)
             if isinstance(hosts, basestring):
                 hosts = hosts.split(':')
+            if hosts is None:
+                hosts = {}
             if self.uid not in hosts:
                 log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.uid, ','.join(hosts), playbook)
                 if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.uid)):
                     sys.exit(1)
-        play_ds['hosts'] = [self.uid]
+        play._attributes['hosts'] = [self.uid]
     return pb
 
 
 def apply_playbook(self, playbook, *args, **kwargs):
-    self.get_playbook(playbook=playbook, *args, **kwargs).run()
+    from ansible.executor.task_queue_manager import TaskQueueManager
+    (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
+    tqm = TaskQueueManager(inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, passwords=None)
+    for play in playbook.get_plays():
+        tqm.run(play=play)
 
 
 def configure(self, *args, **kwargs):
-    verbosity = kwargs.pop('verbosity', 0)
-    pb = self.get_playbook(*args, **kwargs)
-    # we have to wait importing ansible until after get_playbook ran, so the import order is correct
+    (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
+    options = kwargs.pop('options', options)
+    loader = kwargs.pop('loader', loader)
+    inventory = kwargs.pop('inventory', inventory)
+    variable_manager = kwargs.pop('variable_manager', variable_manager)
+    pb = self.get_playbook(inventory=inventory, variable_manager=variable_manager, loader=loader, *args, **kwargs)
     import ansible.errors
-    import ansible.utils
-    VERBOSITY = ansible.utils.VERBOSITY
-    ansible.utils.VERBOSITY = verbosity
     try:
-        pb.run()
+        self.apply_playbook(pb, inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, *args, **kwargs)
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
-    finally:
-        ansible.utils.VERBOSITY = VERBOSITY
 
 
 def _get_ansible_inventorymanager(ctrl, main_config):

@@ -10,31 +10,28 @@ def test_register_ansible_module_path_from_multiple_entry_points():
     pass
 
 
-def test_configure_without_args(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'configure'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'usage: ploy configure' in output
-    assert 'too few arguments' in output
+def test_configure_without_args(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'configure'])
+    (out, err) = capsys.readouterr()
+    assert 'usage: ploy configure' in err
+    assert 'too few arguments' in err
 
 
-def test_configure_with_nonexisting_instance(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'configure', 'bar'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'usage: ploy configure' in output
-    assert "argument instance: invalid choice: 'bar'" in output
+def test_configure_with_nonexisting_instance(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'configure', 'bar'])
+    (out, err) = capsys.readouterr()
+    assert 'usage: ploy configure' in err
+    assert "argument instance: invalid choice: 'bar'" in err
 
 
-def test_configure_with_missing_yml(ctrl, mock):
-    with mock.patch('sys.stderr') as StdErrMock:
-        with pytest.raises(SystemExit):
-            ctrl(['./bin/ploy', 'configure', 'foo'])
-    output = "".join(x[0][0] for x in StdErrMock.write.call_args_list)
-    assert 'usage: ploy configure' in output
-    assert "argument instance: invalid choice: 'foo'" in output
+def test_configure_with_missing_yml(capsys, ctrl, mock):
+    with pytest.raises(SystemExit):
+        ctrl(['./bin/ploy', 'configure', 'foo'])
+    (out, err) = capsys.readouterr()
+    assert 'usage: ploy configure' in err
+    assert "argument instance: invalid choice: 'foo'" in err
 
 
 def test_configure_with_empty_yml(ctrl, mock, tempdir):
@@ -44,7 +41,7 @@ def test_configure_with_empty_yml(ctrl, mock, tempdir):
             ctrl(['./bin/ploy', 'configure', 'foo'])
     assert len(LogMock.error.call_args_list) == 1
     call_args = LogMock.error.call_args_list[0][0]
-    assert 'parse error: playbooks must be formatted as a YAML list' in call_args[0]
+    assert 'playbooks must be a list of plays' in call_args[0]
 
 
 def test_configure_asks_when_no_host_in_yml(ctrl, mock, tempdir):
@@ -66,28 +63,37 @@ def test_configure(ctrl, mock, monkeypatch, tempdir):
         '---',
         '- hosts: default-foo'])
     runmock = mock.MagicMock()
-    monkeypatch.setattr("ansible.playbook.PlayBook.run", runmock)
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
     ctrl(['./bin/ploy', 'configure', 'foo'])
     assert runmock.called
 
 
-def test_configure_playbook_option(ctrl, mock, ployconf, tempdir):
-    import ansible.playbook
+def test_configure_playbook_option(ctrl, monkeypatch, ployconf, tempdir):
+    from ploy_ansible import get_playbook
     yml = tempdir['default-bar.yml']
     yml.fill([
         '---',
         '- hosts: default-foo'])
     ployconf.fill([
         '[dummy-instance:foo]',
+        'host = foo',
         'playbook = %s' % yml.path])
-    with mock.patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
-        ctrl(['./bin/ploy', 'configure', 'foo'])
-    assert runmock.called
-    assert runmock.call_args[0][0].filename == yml.path
+    playbooks = []
+
+    def _get_playbook(self, *args, **kwargs):
+        pb = get_playbook(self, *args, **kwargs)
+        playbooks.append(pb)
+        return pb
+
+    monkeypatch.setattr("ploy_ansible.get_playbook", _get_playbook)
+    ctrl(['./bin/ploy', 'configure', 'foo'])
+    (pb,) = playbooks
+    assert pb._file_name == yml.path
 
 
-def test_configure_playbook_option_shadowing(ctrl, mock, ployconf, caplog, tempdir):
-    import ansible.playbook
+def test_configure_playbook_option_shadowing(ctrl, mock, monkeypatch, ployconf, caplog, tempdir):
+    from ploy_ansible import get_playbook
     yml_foo = tempdir['default-foo.yml']
     yml_foo.fill('')
     yml_bar = tempdir['default-bar.yml']
@@ -96,27 +102,41 @@ def test_configure_playbook_option_shadowing(ctrl, mock, ployconf, caplog, tempd
         '- hosts: default-foo'])
     ployconf.fill([
         '[dummy-instance:foo]',
+        'host = foo',
         'playbook = %s' % yml_bar.path])
-    with mock.patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
-        ctrl(['./bin/ploy', 'configure', 'foo'])
-    assert runmock.called
-    assert runmock.call_args[0][0].filename == yml_bar.path
+    playbooks = []
+
+    def _get_playbook(self, *args, **kwargs):
+        pb = get_playbook(self, *args, **kwargs)
+        playbooks.append(pb)
+        return pb
+
+    monkeypatch.setattr("ploy_ansible.get_playbook", _get_playbook)
+    ctrl(['./bin/ploy', 'configure', 'foo'])
+    (pb,) = playbooks
+    assert pb._file_name == yml_bar.path
     assert [x.message for x in caplog.records] == [
         "Instance 'dummy-instance:foo' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (yml_foo.path, yml_bar.path),
         "Using playbook at '%s'." % yml_bar.path]
 
 
-def test_configure_roles_option(ctrl, mock, ployconf, tempdir):
-    import ansible.playbook
+def test_configure_roles_option(ctrl, mock, monkeypatch, ployconf, tempdir):
     ployconf.fill([
         '[dummy-instance:foo]',
+        'host = foo',
         'roles = ham egg'])
-    with mock.patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
-        ctrl(['./bin/ploy', 'configure', 'foo'])
+    tempdir['roles/egg/tasks/main.yml'].fill([])
+    tempdir['roles/ham/tasks/main.yml'].fill([])
+    runmock = mock.MagicMock()
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
+    ctrl(['./bin/ploy', 'configure', 'foo'])
     assert runmock.called
-    assert runmock.call_args[0][0].filename == "<dynamically generated from ['ham', 'egg']>"
-    assert runmock.call_args[0][0].playbook == [{'hosts': ['default-foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
-    assert runmock.call_args[0][0].play_basedirs == [tempdir.directory]
+    (call,) = runmock.call_args_list
+    play = call[1]['play']
+    assert play.hosts == ['default-foo']
+    assert play.remote_user == 'root'
+    assert [x.get_name() for x in play.get_roles()] == ['ham', 'egg']
 
 
 def test_configure_roles_default_playbook_conflict(ctrl, ployconf, caplog, tempdir):
@@ -124,6 +144,7 @@ def test_configure_roles_default_playbook_conflict(ctrl, ployconf, caplog, tempd
     yml.fill('')
     ployconf.fill([
         '[dummy-instance:foo]',
+        'host = foo',
         'roles = ham egg'])
     with pytest.raises(SystemExit):
         ctrl(['./bin/ploy', 'configure', 'foo'])
@@ -140,6 +161,7 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
     ployconf.fill([
         '[dummy-instance:foo]',
         'playbook = %s' % yml.path,
+        'host = foo',
         'roles = ham egg'])
     with pytest.raises(SystemExit):
         ctrl(['./bin/ploy', 'configure', 'foo'])
@@ -149,14 +171,19 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
 
 
 def test_configure_with_extra_vars(ctrl, mock, monkeypatch, tempdir):
-    import ansible.playbook
     tempdir['default-foo.yml'].fill([
         '---',
         '- hosts: default-foo'])
-    with mock.patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
-        ctrl(['./bin/ploy', 'configure', 'foo', '-e', 'foo=bar', '-e', 'bar=foo'])
+    runmock = mock.MagicMock()
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
+    ctrl(['./bin/ploy', 'configure', 'foo', '-e', 'foo=bar', '-e', 'bar=foo'])
     assert runmock.called
-    assert runmock.call_args[0][0].extra_vars == dict(foo='bar', bar='foo')
+    (call,) = runmock.call_args_list
+    play = call[1]['play']
+    variables = play.get_variable_manager().get_vars()
+    assert variables['foo'] == 'bar'
+    assert variables['bar'] == 'foo'
 
 
 def test_playbook_without_args(capsys, ctrl, mock):
