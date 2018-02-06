@@ -7,7 +7,6 @@ import os
 import subprocess
 import sys
 from binascii import b2a_base64
-from lazy import lazy
 from ploy.common import sorted_choices, yesno
 
 
@@ -107,9 +106,13 @@ class KeyringSource:
                 sys.exit(1)
             self.keyring = keyring
         if not id:
-            log.error("No unique id for vault password in keyring secified.")
+            log.error("No unique id for vault password in keyring specified.")
             sys.exit(1)
         self.id = id
+
+    @property
+    def bytes(self):
+        return self.get().encode('ascii')
 
     def get(self, fail_on_error=True):
         result = self.keyring.get_password("ploy_ansible", self.id)
@@ -146,14 +149,19 @@ def run_cli(ctrl, name, sub, argv, myclass=None):
     inject_ansible_paths(ctrl)
     import ansible.constants as C
     from ansible import errors
+    from ansible.cli import CLI
     from ansible.module_utils._text import to_text
     import shutil
-    try:
-        from ansible.parsing.vault import VaultLib
-    except ImportError:
-        VaultLib = None
     if myclass is None:
         myclass = "%sCLI" % sub.capitalize()
+
+    def setup_vault_secrets(loader, vault_ids, *args, **kwargs):
+        vault_secret = get_vault_password_source(ctrl.config)
+        if isinstance(vault_secret, NullSource):
+            return []
+        return [(vault_secret.id, vault_secret)]
+    CLI.setup_vault_secrets = staticmethod(setup_vault_secrets)
+
     mycli = getattr(
         __import__("ansible.cli.%s" % sub, fromlist=[myclass]),
         myclass)
@@ -388,120 +396,11 @@ class AnsibleVaultCmd(object):
         self.ctrl = ctrl
 
     def get_completion(self):
-        return ('create', 'decrypt', 'edit', 'encrypt', 'rekey')
+        from ansible.cli.vault import VaultCLI
+        return sorted_choices(VaultCLI.VALID_ACTIONS)
 
     def __call__(self, argv, help):
-        parser = argparse.ArgumentParser(
-            prog="%s vault" % self.ctrl.progname,
-            description=help)
-        subparsers = parser.add_subparsers(help="sub commands of vault command")
-        catparser = subparsers.add_parser("cat", help="cat contents of an encrypted file")
-        catparser.add_argument("file", nargs=1)
-        catparser.set_defaults(func=self.cmd_cat)
-        createparser = subparsers.add_parser("create", help="create an encrypted file")
-        createparser.add_argument("file", nargs=1)
-        createparser.set_defaults(func=self.cmd_create)
-        decryptparser = subparsers.add_parser("decrypt", help="decrypt encrypted files")
-        decryptparser.add_argument("file", nargs="+")
-        decryptparser.set_defaults(func=self.cmd_decrypt)
-        editparser = subparsers.add_parser("edit", help="edit an encrypted file")
-        editparser.add_argument("file", nargs=1)
-        editparser.set_defaults(func=self.cmd_edit)
-        encryptparser = subparsers.add_parser("encrypt", help="encrypt unencrypted files")
-        encryptparser.add_argument("file", nargs="+")
-        encryptparser.set_defaults(func=self.cmd_encrypt)
-        rekeyparser = subparsers.add_parser("rekey", help="rekey encrypted files")
-        rekeyparser.add_argument("file", nargs="+")
-        rekeyparser.set_defaults(func=self.cmd_rekey)
-        args = parser.parse_args(argv)
-        args.func(args)
-
-    @lazy
-    def AnsibleError(self):
-        inject_ansible_paths()
-        from ansible.errors import AnsibleError
-        return AnsibleError
-
-    @lazy
-    def ve(self):
-        inject_ansible_paths()
-        try:
-            from ansible.utils.vault import VaultEditor
-        except ImportError:
-            log.error("Your ansible installation doesn't support vaults.")
-            sys.exit(1)
-        return VaultEditor
-
-    @lazy
-    def vl(self):
-        inject_ansible_paths()
-        try:
-            from ansible.utils.vault import VaultLib
-        except ImportError:
-            log.error("Your ansible installation doesn't support vaults.")
-            sys.exit(1)
-        return VaultLib
-
-    def cmd_cat(self, args):
-        password = get_vault_password_source(self.ctrl.config).get()
-        this_editor = self.ve(None, password, args.file[0])
-        vl = self.vl(password)
-        try:
-            sys.stdout.write(vl.decrypt(this_editor.read_data(this_editor.filename)))
-            sys.stdout.flush()
-        except self.AnsibleError as e:
-            log.error("%s" % e)
-            sys.exit(1)
-
-    def cmd_create(self, args):
-        password = get_vault_password_source(self.ctrl.config).get()
-        this_editor = self.ve(None, password, args.file[0])
-        try:
-            this_editor.create_file()
-        except self.AnsibleError as e:
-            log.error("%s" % e)
-
-    def cmd_decrypt(self, args):
-        password = get_vault_password_source(self.ctrl.config).get()
-        for f in args.file:
-            this_editor = self.ve(None, password, f)
-            try:
-                this_editor.decrypt_file()
-            except self.AnsibleError as e:
-                log.error("%s" % e)
-            log.info("Decrypted %s" % f)
-
-    def cmd_edit(self, args):
-        password = get_vault_password_source(self.ctrl.config).get()
-        this_editor = self.ve(None, password, args.file[0])
-        try:
-            this_editor.edit_file()
-        except self.AnsibleError as e:
-            log.error("%s" % e)
-
-    def cmd_encrypt(self, args):
-        password = get_vault_password_source(self.ctrl.config).get()
-        for f in args.file:
-            this_editor = self.ve(None, password, f)
-            try:
-                this_editor.encrypt_file()
-            except self.AnsibleError as e:
-                log.error("%s" % e)
-            log.info("Encrypted %s" % f)
-
-    def cmd_rekey(self, args):
-        old_password = get_vault_password_source(self.ctrl.config, option='vault-password-old-source').get()
-        if old_password is None:
-            log.error("You have to specify the old vault password source with the 'vault-password-old-source' option.")
-            sys.exit(1)
-        password = get_vault_password_source(self.ctrl.config).get()
-        for f in args.file:
-            this_editor = self.ve(None, old_password, f)
-            try:
-                this_editor.rekey_file(password)
-            except self.AnsibleError as e:
-                log.error("%s" % e)
-            log.info("Rekeyed %s" % f)
+        return run_cli(self.ctrl, 'vault', 'vault', argv)
 
 
 def has_playbook(self):
@@ -605,7 +504,6 @@ def configure(self, *args, **kwargs):
 def _get_ansible_inventorymanager(ctrl, main_config):
     inject_ansible_paths(ctrl)
     from ploy_ansible.inventory import InventoryManager
-    vault_password = get_vault_password_source(main_config).get(fail_on_error=False)
     return InventoryManager()
 
 
@@ -643,6 +541,9 @@ def get_ansible_variablemanager(self, **kwargs):
         loader = kwargs['loader']
     else:
         loader = DataLoader()
+        vault_secret = get_vault_password_source(self.master.main_config)
+        if not isinstance(vault_secret, NullSource):
+            loader.set_vault_secrets([(vault_secret.id, vault_secret)])
         basedir = get_playbooks_directory(self.master.ctrl.config)
         loader.set_basedir(basedir)
     if 'inventory' in kwargs:
@@ -665,12 +566,25 @@ def get_ansible_variables(self):
     return hostvars[self.uid]
 
 
+def _get_vault_lib(ctrl, main_config):
+    inject_ansible_paths(ctrl)
+    from ansible.parsing.vault import VaultLib
+    vl = VaultLib()
+    vault_secret = get_vault_password_source(main_config)
+    if not isinstance(vault_secret, NullSource):
+        vl.secrets = [(vault_secret.id, vault_secret)]
+    return vl
+
+
+def _get_vault_editor(ctrl, main_config):
+    from ansible.parsing.vault import VaultEditor
+    vl = _get_vault_lib(ctrl, main_config)
+    ve = VaultEditor(vl)
+    return ve
+
+
 def get_vault_lib(self):
-    try:
-        from ansible.utils.vault import VaultLib
-    except ImportError:
-        return None
-    return VaultLib(get_vault_password_source(self.master.main_config).get())
+    return _get_vault_lib(self.master.ctrl, self.master.main_config)
 
 
 def augment_instance(instance):
