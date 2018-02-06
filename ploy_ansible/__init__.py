@@ -652,12 +652,6 @@ def configure(self, *args, **kwargs):
         ansible.utils.VERBOSITY = VERBOSITY
 
 
-class AnsibleVariablesDict(dict):
-    def __getitem__(self, name):
-        from ansible.utils.template import template
-        return template(self.basedir, dict.__getitem__(self, name), self, fail_on_undefined=True)
-
-
 def _get_ansible_inventorymanager(ctrl, main_config):
     inject_ansible_paths(ctrl)
     from ploy_ansible.inventory import InventoryManager
@@ -669,12 +663,56 @@ def get_ansible_inventorymanager(self):
     return _get_ansible_inventorymanager(self.master.ctrl, self.master.main_config)
 
 
+class AnsibleOptions(object):
+    def __init__(self):
+        from ansible import constants as C
+        self.ask_vault_pass = None
+        self.become = C.DEFAULT_BECOME
+        self.become_method = C.DEFAULT_BECOME_METHOD
+        self.become_user = C.DEFAULT_BECOME_USER
+        self.check = False
+        self.connection = C.DEFAULT_TRANSPORT
+        self.diff = C.DIFF_ALWAYS
+        self.forks = C.DEFAULT_FORKS
+        self.inventory = None
+        self.module_path = None
+        self.vault_ids = []
+        self.vault_password_files = None
+        self.verbosity = C.DEFAULT_VERBOSITY
+
+
+def get_ansible_variablemanager(self, **kwargs):
+    from ansible.parsing.dataloader import DataLoader
+    from ansible.utils.vars import load_extra_vars
+    from ansible.vars.manager import VariableManager
+    if 'options' in kwargs:
+        options = kwargs['options']
+    else:
+        options = AnsibleOptions()
+    if 'loader' in kwargs:
+        loader = kwargs['loader']
+    else:
+        loader = DataLoader()
+        basedir = get_playbooks_directory(self.master.ctrl.config)
+        loader.set_basedir(basedir)
+    if 'inventory' in kwargs:
+        inventory = kwargs['inventory']
+    else:
+        inventory = self.get_ansible_inventorymanager()
+    if 'variable_manager' in kwargs:
+        variable_manager = kwargs['variable_manager']
+    else:
+        variable_manager = VariableManager(loader=loader, inventory=inventory)
+        variable_manager.extra_vars = load_extra_vars(loader=loader, options=options)
+    return (options, loader, inventory, variable_manager)
+
+
 def get_ansible_variables(self):
-    inventory = self.get_ansible_inventory()
-    basedir = get_playbooks_directory(self.master.ctrl.config)
-    result = AnsibleVariablesDict(inventory.get_variables(self.uid))
-    result.basedir = basedir
-    return result
+    from ansible.vars.hostvars import HostVars
+
+    (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager()
+    hostvars = HostVars(inventory=inventory, variable_manager=variable_manager, loader=loader)
+    return hostvars[self.uid]
 
 
 def get_vault_lib(self):
@@ -694,6 +732,8 @@ def augment_instance(instance):
         instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'configure'):
         instance.configure = configure.__get__(instance, instance.__class__)
+    if not hasattr(instance, 'get_ansible_variablemanager'):
+        instance.get_ansible_variablemanager = get_ansible_variablemanager.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_inventorymanager'):
         instance.get_ansible_inventorymanager = get_ansible_inventorymanager.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):

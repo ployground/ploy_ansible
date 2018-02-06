@@ -38,7 +38,6 @@ class Host(BaseHost):
                 results[k[len('ansible-'):].replace('-', '_')] = v
             else:
                 results['ploy_%s' % k.replace('-', '_')] = v
-                results['awsome_%s' % k.replace('-', '_')] = v
         return results
 
     @vars.setter
