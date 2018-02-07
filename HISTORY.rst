@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.0.0 - Unreleased
+------------------
+
+* Readded ``execnet_connection`` as plugin.
+  [fschulze]
+
+
 2.0.0b1 - 2018-02-07
 --------------------
 

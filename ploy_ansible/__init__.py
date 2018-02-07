@@ -11,9 +11,11 @@ from ploy.common import sorted_choices, yesno
 
 
 log = logging.getLogger('ploy_ansible')
+RPC_CACHE = {}
 
 
 ansible_paths = dict(
+    connection=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'connection_plugins')],
     lookup=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lookup_plugins')])
 
 
@@ -66,6 +68,7 @@ def inject_ansible_paths(ctrl=None):
     # and inject the paths
     C.DEFAULT_ROLES_PATH[0:0] = extra_roles
     C.DEFAULT_MODULE_PATH[0:0] = extra_library
+    C.DEFAULT_TRANSPORT = 'execnet_connection'
     for attr in extra_plugins:
         getattr(C, attr)[0:0] = extra_plugins[attr]
     # patch the InventoryManager into Ansible

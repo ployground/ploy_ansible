@@ -7,11 +7,12 @@ README = open(os.path.join(here, 'README.rst')).read()
 HISTORY = open(os.path.join(here, 'HISTORY.rst')).read()
 
 
-version = "2.0.0b1"
+version = "2.0.0b2"
 
 
 install_requires = [
     'ansible>=2.4',
+    'execnet',
     'ploy >= 2.0.0b1']
 
 
