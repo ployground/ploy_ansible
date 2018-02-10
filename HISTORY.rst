@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0.0b3 - Unreleased
+2.0.0b3 - 2018-02-10
 --------------------
 
 * Fix ``ploy_crypted`` lookup plugin.
