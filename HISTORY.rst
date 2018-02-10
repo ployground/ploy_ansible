@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.0.0b3 - Unreleased
+--------------------
+
+* Fix ``ploy_crypted`` lookup plugin.
+  [fschulze]
+
+
 2.0.0b2 - 2018-02-07
 --------------------
 

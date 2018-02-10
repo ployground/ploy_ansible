@@ -571,19 +571,20 @@ def get_ansible_variables(self):
 
 def _get_vault_lib(ctrl, main_config):
     inject_ansible_paths(ctrl)
-    from ansible.parsing.vault import VaultLib
+    from ansible.parsing.vault import VaultLib as BaseVaultLib
+    from ansible.parsing.vault import is_encrypted
+
+    class VaultLib(BaseVaultLib):
+        # we redefine this here to get rid of the deprecation warning
+        @staticmethod
+        def is_encrypted(data):
+            return is_encrypted(data)
+
     vl = VaultLib()
     vault_secret = get_vault_password_source(main_config)
     if not isinstance(vault_secret, NullSource):
         vl.secrets = [(vault_secret.id, vault_secret)]
     return vl
-
-
-def _get_vault_editor(ctrl, main_config):
-    from ansible.parsing.vault import VaultEditor
-    vl = _get_vault_lib(ctrl, main_config)
-    ve = VaultEditor(vl)
-    return ve
 
 
 def get_vault_lib(self):
