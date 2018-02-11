@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0.0b4 - Unreleased
+2.0.0b4 - 2018-02-11
 --------------------
 
 * Fix become/sudo support for ``execnet_connection``.
