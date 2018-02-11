@@ -1019,6 +1019,7 @@ def get_playbook(self, *args, **kwargs):
             playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
             if os.path.exists(playbook_path):
                 playbook = playbook_path
+                break
         if 'playbook' in self.config:
             if playbook is not None and playbook != self.config['playbook']:
                 log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))

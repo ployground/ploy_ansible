@@ -148,6 +148,21 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
         "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
 
 
+def test_configure_playbook_discovery(ctrl, ployconf, caplog, tempdir):
+    import ansible.playbook
+    tempdir['foo.yml'].fill('')
+    yml = tempdir['default-foo.yml']
+    yml.fill([
+        '---',
+        '- hosts: default-foo'])
+    with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
+        ctrl(['./bin/ploy', 'configure', 'foo'])
+    assert runmock.called
+    assert runmock.call_args[0][0].extra_vars == dict()
+    assert [x.message for x in caplog.records] == [
+        "Using playbook at '%s'." % yml.path]
+
+
 def test_configure_with_extra_vars(ctrl, monkeypatch, tempdir):
     import ansible.playbook
     tempdir['default-foo.yml'].fill([

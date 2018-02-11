@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.4.1 - Unreleased
+------------------
+
+* Fix playbook discovery.
+  [fschulze]
+
+
 1.4.0 - 2017-12-17
 ------------------
 
