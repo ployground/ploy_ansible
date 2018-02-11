@@ -485,10 +485,24 @@ def get_playbook(self, *args, **kwargs):
 
 def apply_playbook(self, playbook, *args, **kwargs):
     from ansible.executor.task_queue_manager import TaskQueueManager
+
     (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
-    tqm = TaskQueueManager(inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, passwords=None)
-    for play in playbook.get_plays():
-        tqm.run(play=play)
+
+    tqm = None
+    try:
+        tqm = TaskQueueManager(
+            inventory=inventory,
+            variable_manager=variable_manager,
+            loader=loader,
+            options=options,
+            passwords=None)
+        for play in playbook.get_plays():
+            result = tqm.run(play=play)
+            if result:
+                sys.exit(result)
+    finally:
+        if tqm is not None:
+            tqm.cleanup()
 
 
 def configure(self, *args, **kwargs):
