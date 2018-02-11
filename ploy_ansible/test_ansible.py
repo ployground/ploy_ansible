@@ -69,7 +69,7 @@ def test_configure(ctrl, mock, monkeypatch, tempdir):
     assert runmock.called
 
 
-def test_configure_playbook_option(ctrl, monkeypatch, ployconf, tempdir):
+def test_configure_playbook_option(ctrl, mock, monkeypatch, ployconf, tempdir):
     from ploy_ansible import get_playbook
     yml = tempdir['default-bar.yml']
     yml.fill([
@@ -87,6 +87,9 @@ def test_configure_playbook_option(ctrl, monkeypatch, ployconf, tempdir):
         return pb
 
     monkeypatch.setattr("ploy_ansible.get_playbook", _get_playbook)
+    runmock = mock.MagicMock()
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
     ctrl(['./bin/ploy', 'configure', 'foo'])
     (pb,) = playbooks
     assert pb._file_name == yml.path
@@ -112,6 +115,9 @@ def test_configure_playbook_option_shadowing(ctrl, mock, monkeypatch, ployconf, 
         return pb
 
     monkeypatch.setattr("ploy_ansible.get_playbook", _get_playbook)
+    runmock = mock.MagicMock()
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
     ctrl(['./bin/ploy', 'configure', 'foo'])
     (pb,) = playbooks
     assert pb._file_name == yml_bar.path
@@ -168,6 +174,21 @@ def test_configure_roles_playbook_option_conflict(ctrl, ployconf, caplog, tempdi
     assert [x.message for x in caplog.records] == [
         "Using playbook at '%s'." % yml.path,
         "You can't use a playbook and the 'roles' options at the same time for instance 'dummy-instance:foo'."]
+
+
+def test_configure_playbook_discovery(ctrl, mock, monkeypatch, ployconf, caplog, tempdir):
+    tempdir['foo.yml'].fill('')
+    yml = tempdir['default-foo.yml']
+    yml.fill([
+        '---',
+        '- hosts: default-foo'])
+    runmock = mock.MagicMock()
+    monkeypatch.setattr("ansible.executor.task_queue_manager.TaskQueueManager.run", runmock)
+    runmock.return_value = 0
+    ctrl(['./bin/ploy', 'configure', 'foo'])
+    assert runmock.called
+    assert [x.message for x in caplog.records] == [
+        "Using playbook at '%s'." % yml.path]
 
 
 def test_configure_with_extra_vars(ctrl, mock, monkeypatch, tempdir):

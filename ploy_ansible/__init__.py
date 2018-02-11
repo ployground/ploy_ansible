@@ -497,9 +497,7 @@ def apply_playbook(self, playbook, *args, **kwargs):
             options=options,
             passwords=None)
         for play in playbook.get_plays():
-            result = tqm.run(play=play)
-            if result:
-                sys.exit(result)
+            return tqm.run(play=play)
     finally:
         if tqm is not None:
             tqm.cleanup()
@@ -517,7 +515,9 @@ def configure(self, *args, **kwargs):
         sys.exit(1)
     import ansible.errors
     try:
-        self.apply_playbook(pb, inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, *args, **kwargs)
+        result = self.apply_playbook(pb, inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, *args, **kwargs)
+        if result:
+            sys.exit(result)
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
