@@ -2,6 +2,7 @@ from ansible import errors
 from ansible.plugins.connection import ConnectionBase
 import execnet
 import os
+import paramiko
 import ploy_ansible
 import ploy_ansible.remote
 import sys
@@ -68,7 +69,7 @@ class Connection(ConnectionBase):
                     raise errors.AnsibleError("Instance '%s' unavailable." % instance.config_id)
             try:
                 ssh_info = instance.init_ssh_key(user=self.user)
-            except instance.paramiko.SSHException as e:
+            except paramiko.SSHException as e:
                 raise errors.AnsibleError("Couldn't validate fingerprint for '%s': %s" % (instance.config_id, e))
             spec = execnet.XSpec('ssh')
             ssh_args = instance.ssh_args_from_info(ssh_info)
@@ -91,18 +92,8 @@ class Connection(ConnectionBase):
         if in_data is not None:
             raise errors.AnsibleError("Internal Error: this module does not support optimized module pipelining")
 
-        if sudoable and self._play_context.become_method not in self.become_methods_supported:
-            raise errors.AnsibleError("Internal Error: this module does not support running commands via %s" % self.runner.become_method)
-
-        become = self._play_context.become
-        remote_cmd = []
-        if not become or not sudoable:
-            remote_cmd.append(cmd)
-        else:
-            remote_cmd.append(becomecmd)
-        remote_cmd = ' '.join(remote_cmd)
-        display.vvv("execnet exec_command %r" % remote_cmd)
-        rc, stdout, stderr = self.rpc.exec_command(remote_cmd)
+        display.vvv("execnet exec_command %s" % cmd)
+        rc, stdout, stderr = self.rpc.exec_command(cmd)
         return (rc, stdout, stderr)
 
     def put_file(self, in_path, out_path):

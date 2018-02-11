@@ -4,6 +4,9 @@ Changelog
 2.0.0b4 - Unreleased
 --------------------
 
+* Fix become/sudo support for ``execnet_connection``.
+  [fschulze]
+
 * Fix playbook discovery.
   [fschulze]
 
