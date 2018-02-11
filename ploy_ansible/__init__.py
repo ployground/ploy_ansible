@@ -428,9 +428,11 @@ def get_playbook(self, *args, **kwargs):
     playbooks_directory = get_playbooks_directory(self.master.main_config)
     playbook = kwargs.pop('playbook', None)
     if playbook is None:
-        playbook_path = os.path.join(playbooks_directory, '%s.yml' % self.uid)
-        if os.path.exists(playbook_path):
-            playbook = playbook_path
+        for instance_id in (self.uid, self.id):
+            playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
+            if os.path.exists(playbook_path):
+                playbook = playbook_path
+                break
         if 'playbook' in self.config:
             if playbook is not None and playbook != self.config['playbook']:
                 log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))
@@ -444,7 +446,7 @@ def get_playbook(self, *args, **kwargs):
         log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.config_id)
         sys.exit(1)
     if playbook is None and roles is None:
-        return []
+        return None
     skip_host_check = kwargs.pop('skip_host_check', False)
     try:
         if roles is None:
@@ -496,6 +498,9 @@ def configure(self, *args, **kwargs):
     inventory = kwargs.pop('inventory', inventory)
     variable_manager = kwargs.pop('variable_manager', variable_manager)
     pb = self.get_playbook(inventory=inventory, variable_manager=variable_manager, loader=loader, *args, **kwargs)
+    if pb is None:
+        log.error("No playbook or roles found.")
+        sys.exit(1)
     import ansible.errors
     try:
         self.apply_playbook(pb, inventory=inventory, variable_manager=variable_manager, loader=loader, options=options, *args, **kwargs)

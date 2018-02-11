@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.0.0b4 - Unreleased
+--------------------
+
+* Fix playbook discovery.
+  [fschulze]
+
+
 2.0.0b3 - 2018-02-10
 --------------------
 
