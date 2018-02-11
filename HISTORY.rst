@@ -4,6 +4,9 @@ Changelog
 1.4.1 - Unreleased
 ------------------
 
+* Return with proper exit code on failure of ``configure`` command.
+  [fschulze]
+
 * Fix playbook discovery.
   [fschulze]
 

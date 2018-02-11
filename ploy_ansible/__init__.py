@@ -1082,7 +1082,12 @@ def configure(self, *args, **kwargs):
     VERBOSITY = ansible.utils.VERBOSITY
     ansible.utils.VERBOSITY = verbosity
     try:
-        pb.run()
+        result = pb.run()
+        for values in result.values():
+            if values.get('failures', 0):
+                sys.exit(2)
+            if values.get('unreachable', 0):
+                sys.exit(3)
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
