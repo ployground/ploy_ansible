@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.4.1 - Unreleased
+1.4.1 - 2018-02-11
 ------------------
 
 * Return with proper exit code on failure of ``configure`` command.
