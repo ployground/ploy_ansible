@@ -15,9 +15,17 @@ class Host(BaseHost):
     def __init__(self, ctrl, name):
         BaseHost.__init__(self, name)
         self.ctrl = ctrl
-        instance = self.ctrl.instances[self.name]
-        self.address = HostAddress(instance.get_host())
-        self.address.instance = instance
+        self._ploy_instance = self.ctrl.instances[self.name]
+
+    @property
+    def address(self):
+        address = HostAddress(self._ploy_instance.get_host())
+        address.instance = self._ploy_instance
+        return address
+
+    @address.setter
+    def address(self, value):
+        pass
 
     @property
     def vars(self):

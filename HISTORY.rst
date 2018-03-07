@@ -1,6 +1,14 @@
 Changelog
 =========
 
+2.0.0b5 - Unreleased
+--------------------
+
+* Make host lookup in InventoryManager lazy to prevent errors when unrelated
+  hosts are not accessible.
+  [fschulze]
+
+
 2.0.0b4 - 2018-02-11
 --------------------
 
