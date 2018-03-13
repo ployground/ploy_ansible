@@ -1,16 +1,4 @@
-import logging
 import pytest
-
-
-@pytest.fixture
-def caplog(caplog):
-    def messages(self, level=logging.INFO):
-        return [
-            x.message
-            for x in self.records
-            if x.levelno >= level]
-    caplog.messages = messages.__get__(caplog, caplog.__class__)
-    return caplog
 
 
 @pytest.fixture
@@ -30,4 +18,5 @@ def ctrl(ployconf):
         ploy_ansible.display._deprecations.clear()
         ploy_ansible.display._warns.clear()
         ploy_ansible.display._errors.clear()
+    ploy_ansible.inject_ansible_paths(ctrl=ctrl)
     return ctrl

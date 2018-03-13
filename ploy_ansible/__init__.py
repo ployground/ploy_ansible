@@ -1,4 +1,5 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
+from operator import attrgetter
 import argparse
 import getpass
 import logging
@@ -10,24 +11,45 @@ from binascii import b2a_base64
 from ploy.common import sorted_choices, yesno
 
 
+try:
+    string_types = basestring
+except NameError:
+    string_types = str
+
+
+ansible_dist = pkg_resources.get_distribution("ansible")
+ansible_version = ansible_dist.parsed_version
+ANSIBLE1 = ansible_version < pkg_resources.parse_version("2dev")
+ANSIBLE2 = not ANSIBLE1
 log = logging.getLogger('ploy_ansible')
 RPC_CACHE = {}
 
 
 ansible_paths = dict(
-    connection=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'connection_plugins')],
     lookup=[os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lookup_plugins')])
+
+if ANSIBLE1:
+    ansible_paths['connection'] = [os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), 'ansible1_connection_plugins')]
+else:
+    ansible_paths['connection'] = [os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), 'connection_plugins')]
+
+
+def inject_ctrl(ctrl):
+    # we need to inject ``ctrl`` as ``_ploy_ctrl``, so the respective classes
+    # have access to it
+    if not ANSIBLE2 or ctrl is None:
+        return
+    from ansible.playbook.play_context import PlayContext
+    from ploy_ansible.inventory import InventoryManager
+    PlayContext._ploy_ctrl = ctrl
+    InventoryManager._ploy_ctrl = ctrl
 
 
 def inject_ansible_paths(ctrl=None):
-    # we need to inject ``ctrl`` as ``_ploy_ctrl``, so the respective classes
-    # have access to it
-    if ctrl is not None:
-        from ansible.playbook.play_context import PlayContext
-        from ploy_ansible.inventory import InventoryManager
-        PlayContext._ploy_ctrl = ctrl
-        InventoryManager._ploy_ctrl = ctrl
     if getattr(inject_ansible_paths, 'done', False):
+        inject_ctrl(ctrl)
         return
     # collect and inject ansible paths (roles and library) from entrypoints
     try:
@@ -35,23 +57,22 @@ def inject_ansible_paths(ctrl=None):
     except ImportError:
         log.error("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    dist = pkg_resources.get_distribution("ansible")
-    if dist.parsed_version >= pkg_resources.parse_version("2.5dev"):
-        from ansible import __version__
+    if ansible_version >= pkg_resources.parse_version("2.8dev"):
         log.warn(
             "You are using an untested version %s of ansible. "
-            "The latest tested version is 2.4.X. "
-            "Any errors may be caused by that newer version." % __version__)
-    # we need to set ``display`` up globally and on the ``__main__`` module
-    # for verbosity settings etc to work properly
-    from ansible.utils.display import Display
-    global display
-    try:
-        display
-    except NameError:
-        display = sys.modules['__main__'].display = Display()
-    else:
-        sys.modules['__main__'].display = display
+            "The latest tested version is 2.7.X. "
+            "Any errors may be caused by that newer version." % ansible_version)
+    if ANSIBLE2:
+        # we need to set ``display`` up globally and on the ``__main__`` module
+        # for verbosity settings etc to work properly
+        from ansible.utils.display import Display
+        global display
+        try:
+            display
+        except NameError:
+            display = sys.modules['__main__'].display = Display()
+        else:
+            sys.modules['__main__'].display = display
     # get the paths
     extra_roles = []
     extra_library = []
@@ -66,15 +87,29 @@ def inject_ansible_paths(ctrl=None):
             if plugin_path_name in plugin_path_names:
                 extra_plugins.setdefault(plugin_path_name, []).extend(pathinfo[key])
     # and inject the paths
-    C.DEFAULT_ROLES_PATH[0:0] = extra_roles
-    C.DEFAULT_MODULE_PATH[0:0] = extra_library
-    C.DEFAULT_TRANSPORT = 'execnet_connection'
-    for attr in extra_plugins:
-        getattr(C, attr)[0:0] = extra_plugins[attr]
-    # patch the InventoryManager into Ansible
-    import ansible.inventory.manager
-    from ploy_ansible.inventory import InventoryManager
-    ansible.inventory.manager.InventoryManager = InventoryManager
+    if ANSIBLE1:
+        if C.DEFAULT_ROLES_PATH is None:
+            C.DEFAULT_ROLES_PATH = os.path.pathsep.join(extra_roles)
+        else:
+            C.DEFAULT_ROLES_PATH = os.path.pathsep.join(extra_roles + [C.DEFAULT_ROLES_PATH])
+        if C.DEFAULT_MODULE_PATH is None:
+            C.DEFAULT_MODULE_PATH = os.path.pathsep.join(extra_library)
+        else:
+            C.DEFAULT_MODULE_PATH = os.path.pathsep.join(extra_library + [C.DEFAULT_MODULE_PATH])
+        for attr in extra_plugins:
+            setattr(C, attr, os.path.pathsep.join([os.path.pathsep.join(extra_plugins[attr]), getattr(C, attr)]))
+    else:
+        C.DEFAULT_ROLES_PATH[0:0] = extra_roles
+        C.DEFAULT_MODULE_PATH[0:0] = extra_library
+        C.DEFAULT_TRANSPORT = 'execnet_connection'
+        for attr in extra_plugins:
+            getattr(C, attr)[0:0] = extra_plugins[attr]
+    inject_ctrl(ctrl)
+    if ANSIBLE2:
+        # patch the InventoryManager into Ansible
+        import ansible.inventory.manager
+        from ploy_ansible.inventory import InventoryManager
+        ansible.inventory.manager.InventoryManager = InventoryManager
     inject_ansible_paths.done = True
 
 
@@ -150,6 +185,9 @@ def get_vault_password_source(main_config, option='vault-password-source'):
 
 def run_cli(ctrl, name, sub, argv, myclass=None):
     inject_ansible_paths(ctrl)
+    if ANSIBLE1:
+        import ploy_ansible.cli1
+        return ploy_ansible.cli1.run_cli(ctrl, name, argv)
     import ansible.constants as C
     from ansible import errors
     from ansible.cli import CLI
@@ -263,14 +301,24 @@ class AnsibleConfigureCmd(object):
         else:
             skip_tags = []
         inject_ansible_paths(self.ctrl)
-        display.verbosity = args.verbose
-        options = AnsibleOptions()
-        options.verbosity = args.verbose
-        options.only_tags = only_tags
-        options.skip_tags = skip_tags
-        options.extra_vars = args.extra_vars
+        if ANSIBLE1:
+            from ploy_ansible.cli1 import parse_extra_vars
+            extra_vars = parse_extra_vars(args.extra_vars)
+            kwargs = dict(
+                only_tags=only_tags,
+                skip_tags=skip_tags,
+                extra_vars=extra_vars,
+                verbosity=args.verbose)
+        else:
+            display.verbosity = args.verbose
+            options = AnsibleOptions()
+            options.verbosity = args.verbose
+            options.tags = only_tags
+            options.skip_tags = skip_tags
+            options.extra_vars = args.extra_vars
+            kwargs = dict(options=options)
         instance.hooks.before_ansible_configure(instance)
-        instance.configure(options=options)
+        instance.configure(**kwargs)
         instance.hooks.after_ansible_configure(instance)
 
 
@@ -285,14 +333,24 @@ class AnsibleInventoryCmd(object):
             prog="%s inventory" % self.ctrl.progname,
             description=help)
         parser.parse_args(argv)
-        inventory = _get_ansible_inventorymanager(self.ctrl, self.ctrl.config)
-        groups = inventory.get_groups_dict()
-        for groupname in sorted(groups):
-            print groupname
-            hosts = groups[groupname]
-            for hostname in sorted(hosts):
-                print "    %s" % hostname
-            print
+        if ANSIBLE1:
+            inventory = _get_ansible_inventory(self.ctrl, self.ctrl.config)
+            groups = sorted(inventory.groups, key=attrgetter('name'))
+            for group in groups:
+                print(group.name)
+                hosts = sorted(group.hosts, key=attrgetter('name'))
+                for host in hosts:
+                    print("    %s" % host.name)
+                print()
+        else:
+            inventory = _get_ansible_inventorymanager(self.ctrl, self.ctrl.config)
+            groups = inventory.get_groups_dict()
+            for groupname in sorted(groups):
+                print(groupname)
+                hosts = groups[groupname]
+                for hostname in sorted(hosts):
+                    print("    %s" % hostname)
+                print()
 
 
 class AnsibleVaultKeyCmd(object):
@@ -369,8 +427,8 @@ class AnsibleVaultKeyCmd(object):
             sys.exit(1)
         key = b2a_base64(os.urandom(32))
         key = key.strip()
-        key = key.replace('+', '-')
-        key = key.replace('/', '_')
+        key = key.replace(b'+', b'-')
+        key = key.replace(b'/', b'_')
         src.set(key)
 
     def cmd_import(self, args, src):
@@ -399,6 +457,8 @@ class AnsibleVaultCmd(object):
         self.ctrl = ctrl
 
     def get_completion(self):
+        if ANSIBLE1:
+            return ('create', 'decrypt', 'edit', 'encrypt', 'rekey')
         from ansible.cli.vault import VaultCLI
         return sorted_choices(VaultCLI.VALID_ACTIONS)
 
@@ -419,7 +479,103 @@ def has_playbook(self):
     return False
 
 
-def get_playbook(self, *args, **kwargs):
+def _get_playbook1(self, *args, **kwargs):
+    inject_ansible_paths(self.master.ctrl)
+    import ansible.playbook
+    import ansible.callbacks
+    import ansible.errors
+    import ansible.utils
+    from ansible.utils.vault import VaultLib
+    from ploy_ansible.cli1 import patch_connect
+    from ploy_ansible.inventory1 import Inventory
+
+    host = self.uid
+    user = self.config.get('user', 'root')
+    sudo = self.config.get('sudo')
+    playbooks_directory = get_playbooks_directory(self.master.main_config)
+
+    class PlayBook(ansible.playbook.PlayBook):
+        def __init__(self, *args, **kwargs):
+            self.roles = kwargs.pop('roles', None)
+            if self.roles is not None:
+                if isinstance(self.roles, string_types):
+                    self.roles = self.roles.split()
+                kwargs['playbook'] = '<dynamically generated from %s>' % self.roles
+            ansible.playbook.PlayBook.__init__(self, *args, **kwargs)
+            self.basedir = playbooks_directory
+
+        def _load_playbook_from_file(self, *args, **kwargs):
+            if self.roles is None:
+                return ansible.playbook.PlayBook._load_playbook_from_file(
+                    self, *args, **kwargs)
+            settings = {
+                'hosts': [host],
+                'user': user,
+                'roles': self.roles}
+            if sudo is not None:
+                settings['sudo'] = sudo
+            return (
+                [settings],
+                [playbooks_directory])
+
+    patch_connect(self.master.ctrl)
+    playbook = kwargs.pop('playbook', None)
+    if playbook is None:
+        for instance_id in (self.uid, self.id):
+            playbook_path = os.path.join(playbooks_directory, '%s.yml' % instance_id)
+            if os.path.exists(playbook_path):
+                playbook = playbook_path
+                break
+        if 'playbook' in self.config:
+            if playbook is not None and playbook != self.config['playbook']:
+                log.warning("Instance '%s' has the 'playbook' option set, but there is also a playbook at the default location '%s', which differs from '%s'." % (self.config_id, playbook, self.config['playbook']))
+            playbook = self.config['playbook']
+    if playbook is not None:
+        log.info("Using playbook at '%s'." % playbook)
+    roles = kwargs.pop('roles', None)
+    if roles is None and 'roles' in self.config:
+        roles = self.config['roles']
+    if roles is not None and playbook is not None:
+        log.error("You can't use a playbook and the 'roles' options at the same time for instance '%s'." % self.config_id)
+        sys.exit(1)
+    stats = ansible.callbacks.AggregateStats()
+    callbacks = ansible.callbacks.PlaybookCallbacks(verbose=ansible.utils.VERBOSITY)
+    runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=ansible.utils.VERBOSITY)
+    skip_host_check = kwargs.pop('skip_host_check', False)
+    if roles is None:
+        kwargs['playbook'] = playbook
+    else:
+        kwargs['roles'] = roles
+    if VaultLib is not None:
+        kwargs['vault_password'] = get_vault_password_source(self.master.main_config).get()
+    inventory = Inventory(self.master.ctrl, vault_password=kwargs.get('vault_password'))
+    try:
+        pb = PlayBook(
+            *args,
+            callbacks=callbacks,
+            inventory=inventory,
+            runner_callbacks=runner_callbacks,
+            stats=stats,
+            **kwargs)
+    except ansible.errors.AnsibleError as e:
+        log.error("AnsibleError: %s" % e)
+        sys.exit(1)
+    for (play_ds, play_basedir) in zip(pb.playbook, pb.play_basedirs):
+        if 'user' not in play_ds:
+            play_ds['user'] = self.config.get('user', 'root')
+        if not skip_host_check:
+            hosts = play_ds.get('hosts', '')
+            if isinstance(hosts, string_types):
+                hosts = hosts.split(':')
+            if self.uid not in hosts:
+                log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.uid, ','.join(hosts), playbook)
+                if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.uid)):
+                    sys.exit(1)
+        play_ds['hosts'] = [self.uid]
+    return pb
+
+
+def _get_playbook(self, *args, **kwargs):
     inject_ansible_paths(self.master.ctrl)
     from ansible.playbook import Play, Playbook
     import ansible.errors
@@ -453,7 +609,7 @@ def get_playbook(self, *args, **kwargs):
             pb = Playbook.load(playbook, variable_manager=variable_manager, loader=loader)
             plays = pb.get_plays()
         else:
-            if isinstance(roles, basestring):
+            if isinstance(roles, string_types):
                 roles = roles.split()
             data = {
                 'hosts': [self.uid],
@@ -471,7 +627,7 @@ def get_playbook(self, *args, **kwargs):
             play._attributes['sudo'] = self.config.get('sudo')
         if not skip_host_check:
             hosts = play._attributes.get('hosts', None)
-            if isinstance(hosts, basestring):
+            if isinstance(hosts, string_types):
                 hosts = hosts.split(':')
             if hosts is None:
                 hosts = {}
@@ -481,6 +637,12 @@ def get_playbook(self, *args, **kwargs):
                     sys.exit(1)
         play._attributes['hosts'] = [self.uid]
     return pb
+
+
+def get_playbook(self, *args, **kwargs):
+    if ANSIBLE1:
+        return _get_playbook1(self, *args, **kwargs)
+    return _get_playbook(self, *args, **kwargs)
 
 
 def apply_playbook(self, playbook, *args, **kwargs):
@@ -503,7 +665,29 @@ def apply_playbook(self, playbook, *args, **kwargs):
             tqm.cleanup()
 
 
-def configure(self, *args, **kwargs):
+def _configure1(self, *args, **kwargs):
+    verbosity = kwargs.pop('verbosity', 0)
+    pb = self.get_playbook(*args, **kwargs)
+    # we have to wait importing ansible until after get_playbook ran, so the import order is correct
+    import ansible.errors
+    import ansible.utils
+    VERBOSITY = ansible.utils.VERBOSITY
+    ansible.utils.VERBOSITY = verbosity
+    try:
+        result = pb.run()
+        for values in result.values():
+            if values.get('failures', 0):
+                sys.exit(2)
+            if values.get('unreachable', 0):
+                sys.exit(3)
+    except ansible.errors.AnsibleError as e:
+        log.error("AnsibleError: %s" % e)
+        sys.exit(1)
+    finally:
+        ansible.utils.VERBOSITY = VERBOSITY
+
+
+def _configure(self, *args, **kwargs):
     (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
     options = kwargs.pop('options', options)
     loader = kwargs.pop('loader', loader)
@@ -521,6 +705,12 @@ def configure(self, *args, **kwargs):
     except ansible.errors.AnsibleError as e:
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
+
+
+def configure(self, *args, **kwargs):
+    if ANSIBLE1:
+        return _configure1(self, *args, **kwargs)
+    return _configure(self, *args, **kwargs)
 
 
 def _get_ansible_inventorymanager(ctrl, main_config):
@@ -559,6 +749,7 @@ def get_ansible_variablemanager(self, **kwargs):
         options = kwargs['options']
     else:
         options = AnsibleOptions()
+    safe_basedir = False
     if 'loader' in kwargs:
         loader = kwargs['loader']
     else:
@@ -568,6 +759,7 @@ def get_ansible_variablemanager(self, **kwargs):
             loader.set_vault_secrets([(vault_secret.id, vault_secret)])
         basedir = get_playbooks_directory(self.master.ctrl.config)
         loader.set_basedir(basedir)
+        safe_basedir = True
     if 'inventory' in kwargs:
         inventory = kwargs['inventory']
     else:
@@ -576,16 +768,56 @@ def get_ansible_variablemanager(self, **kwargs):
         variable_manager = kwargs['variable_manager']
     else:
         variable_manager = VariableManager(loader=loader, inventory=inventory)
-        variable_manager.extra_vars = load_extra_vars(loader=loader, options=options)
+        if ansible_version < pkg_resources.parse_version("2.8dev"):
+            variable_manager.extra_vars = load_extra_vars(loader=loader, options=options)
+        if safe_basedir:
+            variable_manager.safe_basedir = True
     return (options, loader, inventory, variable_manager)
 
 
-def get_ansible_variables(self):
+def _get_ansible_inventory(ctrl, main_config):
+    inject_ansible_paths()
+    from ploy_ansible.inventory1 import Inventory
+    vault_password = get_vault_password_source(main_config).get(fail_on_error=False)
+    return Inventory(ctrl, vault_password=vault_password)
+
+
+def get_ansible_inventory(self):
+    return _get_ansible_inventory(self.master.ctrl, self.master.main_config)
+
+
+class AnsibleVariablesDict(dict):
+    def __getitem__(self, name):
+        from ansible.utils.template import template
+        return template(self.basedir, dict.__getitem__(self, name), self, fail_on_undefined=True)
+
+
+def _get_ansible_variables1(self):
+    inventory = self.get_ansible_inventory()
+    basedir = get_playbooks_directory(self.master.ctrl.config)
+    result = AnsibleVariablesDict(inventory.get_variables(self.uid))
+    result.basedir = basedir
+    return result
+
+
+def _get_ansible_variables(self):
     from ansible.vars.hostvars import HostVars
 
     (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager()
     hostvars = HostVars(inventory=inventory, variable_manager=variable_manager, loader=loader)
     return hostvars[self.uid]
+
+
+def get_ansible_variables(self):
+    if ANSIBLE1:
+        return _get_ansible_variables1(self)
+    return _get_ansible_variables(self)
+
+
+def _get_vault_lib1(ctrl, main_config):
+    inject_ansible_paths(ctrl)
+    from ansible.utils.vault import VaultLib
+    return VaultLib(get_vault_password_source(ctrl.config).get())
 
 
 def _get_vault_lib(ctrl, main_config):
@@ -607,6 +839,8 @@ def _get_vault_lib(ctrl, main_config):
 
 
 def get_vault_lib(self):
+    if ANSIBLE1:
+        return _get_vault_lib1(self.master.ctrl, self.master.main_config)
     return _get_vault_lib(self.master.ctrl, self.master.main_config)
 
 
@@ -619,10 +853,14 @@ def augment_instance(instance):
         instance.get_playbook = get_playbook.__get__(instance, instance.__class__)
     if not hasattr(instance, 'configure'):
         instance.configure = configure.__get__(instance, instance.__class__)
-    if not hasattr(instance, 'get_ansible_variablemanager'):
-        instance.get_ansible_variablemanager = get_ansible_variablemanager.__get__(instance, instance.__class__)
-    if not hasattr(instance, 'get_ansible_inventorymanager'):
-        instance.get_ansible_inventorymanager = get_ansible_inventorymanager.__get__(instance, instance.__class__)
+    if ANSIBLE2:
+        if not hasattr(instance, 'get_ansible_variablemanager'):
+            instance.get_ansible_variablemanager = get_ansible_variablemanager.__get__(instance, instance.__class__)
+        if not hasattr(instance, 'get_ansible_inventorymanager'):
+            instance.get_ansible_inventorymanager = get_ansible_inventorymanager.__get__(instance, instance.__class__)
+    else:
+        if not hasattr(instance, 'get_ansible_inventory'):
+            instance.get_ansible_inventory = get_ansible_inventory.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_ansible_variables'):
         instance.get_ansible_variables = get_ansible_variables.__get__(instance, instance.__class__)
     if not hasattr(instance, 'get_vault_lib'):

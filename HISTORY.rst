@@ -4,6 +4,12 @@ Changelog
 2.0.0b5 - Unreleased
 --------------------
 
+* Restored support for ansible 1.9.x.
+  [fschulze]
+
+* Support Python >= 3.5 with ansible >= 2.4.x.
+  [fschulze]
+
 * Make host lookup in InventoryManager lazy to prevent errors when unrelated
   hosts are not accessible.
   [fschulze]

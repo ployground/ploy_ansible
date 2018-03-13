@@ -1,9 +1,8 @@
 from __future__ import unicode_literals
+import pytest
 
 
 def test_inventory_yml_vars(ctrl, monkeypatch, ployconf, tempdir):
-    from ploy_ansible.inventory import InventoryManager
-    monkeypatch.setattr(InventoryManager, '_ploy_ctrl', ctrl)
     ployconf.fill([
         '[dummy-instance:foo]',
         'test = 1',
@@ -23,8 +22,7 @@ def test_inventory_yml_vars(ctrl, monkeypatch, ployconf, tempdir):
 
 
 def test_inventory_groups(ctrl, monkeypatch, ployconf, tempdir):
-    from ploy_ansible.inventory import InventoryManager
-    monkeypatch.setattr(InventoryManager, '_ploy_ctrl', ctrl)
+    pytest.importorskip("ansible", minversion="2")
     ployconf.fill([
         '[dummy-instance:foo]',
         'test = 1',

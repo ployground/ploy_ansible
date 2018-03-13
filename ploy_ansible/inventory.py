@@ -7,6 +7,12 @@ import logging
 log = logging.getLogger('ploy_ansible.inventory')
 
 
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 class HostAddress(unicode):
     pass
 
