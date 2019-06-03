@@ -8,11 +8,11 @@ def test_inventory_deprecation(caplog, ctrl, ployconf):
         'test = 1'])
     inventory = Inventory(ctrl)
     variables = inventory.get_variables('default-foo')
-    assert caplog.messages() == []
+    assert caplog.messages == []
     assert variables['ploy_test']
-    assert caplog.messages() == []
+    assert caplog.messages == []
     assert variables['awsome_test']
-    msg, = caplog.messages()
+    msg, = caplog.messages
     lines = msg.splitlines()
     assert lines[0] == "Use of deprecated variable name 'awsome_test', use 'ploy_test' instead."
     parts = lines[1].rsplit(':', 1)

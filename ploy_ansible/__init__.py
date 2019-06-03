@@ -994,7 +994,8 @@ def get_playbook(self, *args, **kwargs):
             if self.roles is not None:
                 if isinstance(self.roles, basestring):
                     self.roles = self.roles.split()
-                kwargs['playbook'] = '<dynamically generated from %s>' % self.roles
+                kwargs['playbook'] = '<dynamically generated from [%s]>' % ', '.join(
+                    '"%s"' % x for x in self.roles)
             ansible.playbook.PlayBook.__init__(self, *args, **kwargs)
             self.basedir = playbooks_directory
 

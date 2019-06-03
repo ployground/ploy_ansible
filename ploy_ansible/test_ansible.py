@@ -114,7 +114,7 @@ def test_configure_roles_option(ctrl, ployconf, tempdir):
     with patch.object(ansible.playbook.PlayBook, "run", autospec=True) as runmock:
         ctrl(['./bin/ploy', 'configure', 'foo'])
     assert runmock.called
-    assert runmock.call_args[0][0].filename == "<dynamically generated from ['ham', 'egg']>"
+    assert runmock.call_args[0][0].filename == '<dynamically generated from ["ham", "egg"]>'
     assert runmock.call_args[0][0].playbook == [{'hosts': ['default-foo'], 'user': 'root', 'roles': ['ham', 'egg']}]
     assert runmock.call_args[0][0].play_basedirs == [tempdir.directory]
 
