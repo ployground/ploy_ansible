@@ -22,7 +22,7 @@ extras_require = {}
 
 install_requires = [
     'execnet',
-    'ploy >= 2.0.0b2']
+    'ploy >= 2.0.0b3']
 
 
 def get_environment_marker_support_level():

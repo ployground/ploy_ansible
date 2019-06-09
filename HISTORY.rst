@@ -1,8 +1,11 @@
 Changelog
 =========
 
-2.0.0b5 - Unreleased
+2.0.0b5 - 2019-06-09
 --------------------
+
+* This release works up to and including ansible 2.7.x.
+  [fschulze]
 
 * Restored support for ansible 1.9.x.
   [fschulze]
