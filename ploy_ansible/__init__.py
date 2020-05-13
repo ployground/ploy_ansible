@@ -463,6 +463,9 @@ class AnsibleVaultCmd(object):
         return sorted_choices(VaultCLI.VALID_ACTIONS)
 
     def __call__(self, argv, help):
+        if argv[0] == 'cat' and ANSIBLE2:
+            print("Using deprecated 'cat' command, use 'view' instead.", file=sys.stderr)
+            argv[0] = 'view'
         return run_cli(self.ctrl, 'vault', 'vault', argv)
 
 
