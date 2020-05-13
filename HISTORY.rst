@@ -4,7 +4,7 @@ Changelog
 2.0.0b6 - Unreleased
 --------------------
 
-* Support switch from vault ``cat`` to ``view`` command for Ansible 2.x.
+* Support switch from vault ``cat`` to ``view`` command for ansible 2.x.
   [fschulze]
 
 
