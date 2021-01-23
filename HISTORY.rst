@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.0.0b7 - Unreleased
+--------------------
+
+* Fix hanging when using keyring in newer macOS with ansible 2.x.
+  [fschulze]
+
+
 2.0.0b6 - 2020-05-13
 --------------------
 

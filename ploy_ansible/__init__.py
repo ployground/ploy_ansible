@@ -11,6 +11,9 @@ from binascii import b2a_base64
 from ploy.common import sorted_choices, yesno
 
 
+notset = object()
+
+
 try:
     string_types = basestring
 except NameError:
@@ -153,7 +156,9 @@ class KeyringSource:
         return self.get().encode('ascii')
 
     def get(self, fail_on_error=True):
-        result = self.keyring.get_password("ploy_ansible", self.id)
+        result = getattr(self, 'key', notset)
+        if result is notset:
+            self.key = result = self.keyring.get_password("ploy_ansible", self.id)
         if result is None and fail_on_error:
             log.error("No password stored in keyring for service 'ploy_ansible' with username '%s'." % self.id)
             log.info("Use the 'vault-key' command to manage your keys.")
@@ -177,10 +182,19 @@ class KeyringSource:
 
 def get_vault_password_source(main_config, option='vault-password-source'):
     ansible_config = main_config.get('global', {}).get('ansible', {})
+    cache = getattr(main_config, 'ansible_vault_password_source_cache', notset)
+    if cache is notset:
+        main_config.ansible_vault_password_source_cache = cache = {}
     src = ansible_config.get(option)
-    if src is None:
-        return NullSource()
-    return KeyringSource(src)
+    if src not in cache:
+        if src is None:
+            result = NullSource()
+        else:
+            result = KeyringSource(src)
+        cache[src] = result
+    else:
+        result = cache[src]
+    return result
 
 
 def run_cli(ctrl, name, sub, argv, myclass=None):
