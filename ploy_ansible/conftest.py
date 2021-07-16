@@ -19,4 +19,7 @@ def ctrl(ployconf):
         ploy_ansible.display._warns.clear()
         ploy_ansible.display._errors.clear()
     ploy_ansible.inject_ansible_paths(ctrl=ctrl)
-    return ctrl
+    yield ctrl
+    if ploy_ansible.ANSIBLE_HAS_CONTEXT:
+        from ansible import context
+        context.CLIARGS = context.CLIArgs({})

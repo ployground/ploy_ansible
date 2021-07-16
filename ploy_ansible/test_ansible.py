@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from ploy_ansible import ANSIBLE1, ANSIBLE2
+from ploy_ansible import ANSIBLE1, ANSIBLE2, ANSIBLE_HAS_CONTEXT
 import pytest
 import sys
 
@@ -8,6 +8,14 @@ if sys.version_info < (3,):  # pragma: nocover
     too_view_arguments = 'too few arguments'
 else:  # pragma: nocover
     too_view_arguments = 'the following arguments are required'
+
+
+def get_tqm_args(tqm):
+    if ANSIBLE_HAS_CONTEXT:
+        from ansible import context
+        return context.CLIARGS
+    else:
+        return vars(tqm._options)
 
 
 @pytest.fixture
@@ -247,8 +255,8 @@ def test_configure_with_tags(ctrl, runmock, tempdir):
     else:
         (call,) = runmock.call_args_list
         tqm = call[0][0]
-        assert sorted(tqm._options.tags) == ['egg', 'ham']
-        assert tqm._options.skip_tags == []
+        assert sorted(get_tqm_args(tqm)['tags']) == ['egg', 'ham']
+        assert get_tqm_args(tqm)['skip_tags'] == []
 
 
 def test_configure_with_skip_tags(ctrl, runmock, tempdir):
@@ -264,8 +272,8 @@ def test_configure_with_skip_tags(ctrl, runmock, tempdir):
     else:
         (call,) = runmock.call_args_list
         tqm = call[0][0]
-        assert tqm._options.tags == ['all']
-        assert sorted(tqm._options.skip_tags) == ['egg', 'ham']
+        assert get_tqm_args(tqm)['tags'] == ['all']
+        assert sorted(get_tqm_args(tqm)['skip_tags']) == ['egg', 'ham']
 
 
 def test_playbook_without_args(capsys, ctrl, mock):
@@ -293,8 +301,9 @@ def test_playbook_with_empty_yml(capsys, ctrl, mock, tempdir):
         ctrl(['./bin/ploy', 'playbook', yml.path])
     (out, err) = capsys.readouterr()
     assert (
-        "playbooks must be a list of plays" in err or
-        "playbooks must be formatted as a YAML list, got <type 'NoneType'>" in err)
+        "playbooks must be a list of plays" in err
+        or "playbooks must be formatted as a YAML list, got <type 'NoneType'>" in err
+        or "Empty playbook, nothing to do" in err)
 
 
 def test_playbook_asks_when_no_host_in_yml(capsys, ctrl, mock, tempdir):

@@ -24,6 +24,8 @@ ansible_dist = pkg_resources.get_distribution("ansible")
 ansible_version = ansible_dist.parsed_version
 ANSIBLE1 = ansible_version < pkg_resources.parse_version("2dev")
 ANSIBLE2 = not ANSIBLE1
+ANSIBLE_HAS_CONTEXT = ansible_version >= pkg_resources.parse_version("2.8dev")
+ANSIBLE_HAS_SENTINEL = ansible_version >= pkg_resources.parse_version("2.8dev")
 log = logging.getLogger('ploy_ansible')
 RPC_CACHE = {}
 
@@ -238,6 +240,10 @@ def run_cli(ctrl, name, sub, argv, myclass=None):
         display.error("User interrupted execution")
         exit_code = 99
     finally:
+        if ANSIBLE_HAS_CONTEXT:
+            from ansible.utils import context_objects
+            # Reset the stored command line args
+            context_objects.GlobalCLIArgs._Singleton__instance = None
         # Remove ansible tempdir
         shutil.rmtree(C.DEFAULT_LOCAL_TMP, True)
     if exit_code != 0:
@@ -325,12 +331,20 @@ class AnsibleConfigureCmd(object):
                 verbosity=args.verbose)
         else:
             display.verbosity = args.verbose
-            options = AnsibleOptions()
-            options.verbosity = args.verbose
-            options.tags = only_tags
-            options.skip_tags = skip_tags
-            options.extra_vars = args.extra_vars
-            kwargs = dict(options=options)
+            if ANSIBLE_HAS_CONTEXT:
+                from ansible import context
+                context.CLIARGS._store['verbosity'] = args.verbose
+                context.CLIARGS._store['tags'] = only_tags
+                context.CLIARGS._store['skip_tags'] = skip_tags
+                context.CLIARGS._store['extra_vars'] = args.extra_vars
+                kwargs = dict()
+            else:
+                options = AnsibleOptions()
+                options.verbosity = args.verbose
+                options.tags = only_tags
+                options.skip_tags = skip_tags
+                options.extra_vars = args.extra_vars
+                kwargs = dict(options=options)
         instance.hooks.before_ansible_configure(instance)
         instance.configure(**kwargs)
         instance.hooks.after_ansible_configure(instance)
@@ -596,6 +610,10 @@ def _get_playbook(self, *args, **kwargs):
     inject_ansible_paths(self.master.ctrl)
     from ansible.playbook import Play, Playbook
     import ansible.errors
+    if ANSIBLE_HAS_SENTINEL:
+        from ansible.utils.sentinel import Sentinel
+    else:
+        Sentinel = None
 
     (options, loader, inventory, variable_manager) = self.get_ansible_variablemanager(**kwargs)
     playbooks_directory = get_playbooks_directory(self.master.main_config)
@@ -638,15 +656,15 @@ def _get_playbook(self, *args, **kwargs):
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
     for play in plays:
-        if play._attributes.get('remote_user') is None:
+        if play._attributes.get('remote_user') is Sentinel:
             play._attributes['remote_user'] = self.config.get('user', 'root')
         if self.config.get('sudo'):
             play._attributes['sudo'] = self.config.get('sudo')
         if not skip_host_check:
-            hosts = play._attributes.get('hosts', None)
+            hosts = play._attributes.get('hosts', Sentinel)
             if isinstance(hosts, string_types):
                 hosts = hosts.split(':')
-            if hosts is None:
+            if hosts is Sentinel:
                 hosts = {}
             if self.uid not in hosts:
                 log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.uid, ','.join(hosts), playbook)
@@ -669,12 +687,14 @@ def apply_playbook(self, playbook, *args, **kwargs):
 
     tqm = None
     try:
-        tqm = TaskQueueManager(
+        kwargs = dict(
             inventory=inventory,
             variable_manager=variable_manager,
             loader=loader,
-            options=options,
             passwords=None)
+        if options is not None:
+            kwargs['options'] = options
+        tqm = TaskQueueManager(**kwargs)
         for play in playbook.get_plays():
             return tqm.run(play=play)
     finally:
@@ -765,7 +785,10 @@ def get_ansible_variablemanager(self, **kwargs):
     if 'options' in kwargs:
         options = kwargs['options']
     else:
-        options = AnsibleOptions()
+        if ANSIBLE_HAS_CONTEXT:
+            options = None
+        else:
+            options = AnsibleOptions()
     safe_basedir = False
     if 'loader' in kwargs:
         loader = kwargs['loader']
