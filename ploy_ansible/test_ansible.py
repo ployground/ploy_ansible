@@ -283,8 +283,8 @@ def test_playbook_without_args(capsys, ctrl, mock):
     if ANSIBLE1:
         assert 'Usage: ploy playbook playbook.yml' in err
     else:
-        assert 'Usage:' in out
-        assert '[options] playbook.yml' in out
+        assert 'Usage:' in out or 'usage:' in err
+        assert '[options] playbook.yml' in out or 'playbook [playbook ...]' in err
 
 
 def test_playbook_with_nonexisting_playbook(capsys, ctrl, mock):
@@ -336,8 +336,8 @@ def test_ansible_without_args(capsys, ctrl, mock):
     with pytest.raises(SystemExit):
         ctrl(['./bin/ploy', 'ansible'])
     (out, err) = capsys.readouterr()
-    assert 'Usage: ' in out
-    assert '<host-pattern> [options]' in out
+    assert 'Usage:' in out or 'usage:' in err
+    assert '<host-pattern> [options]' in out or 'pattern' in err
 
 
 def test_ansible_with_nonexisting_instance(capsys, ctrl, mock):
