@@ -60,16 +60,18 @@ if get_environment_marker_support_level() >= 2:
     install_requires.append('ansible>=1.9,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*;python_version<"3.0"')
     install_requires.append('ansible>=2.4;python_version>"3.0"')
     classifiers.extend([
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7'])
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9'])
 elif get_environment_marker_support_level() == 1:
     extras_require[':python_version<"3.0"'] = ['ansible>=1.9,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*']
     extras_require[':python_version>"3.0"'] = ['ansible>=2.4']
     classifiers.extend([
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7'])
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9'])
 else:
     if sys.version_info < (3, 0):
         install_requires.append('ansible>=1.9,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*')
@@ -92,7 +94,7 @@ setuptools.setup(
     packages=['ploy_ansible'],
     install_requires=install_requires,
     extras_require=extras_require,
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*',
     entry_points="""
         [ansible_paths]
         ploy_ansible = ploy_ansible:ansible_paths
