@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0.0b7 - Unreleased
+2.0.0b7 - 2021-07-16
 --------------------
 
 * Fix encoding issue with execnet connection on Python 3.x.
