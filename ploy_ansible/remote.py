@@ -24,12 +24,12 @@ def exec_command(cmd):
 
 
 def put_file(data, out_path):
-    with open(out_path, 'w') as f:
+    with open(out_path, 'wb') as f:
         f.write(data)
 
 
 def fetch_file(in_path):
-    with open(in_path) as f:
+    with open(in_path, 'rb') as f:
         return f.read()
 
 

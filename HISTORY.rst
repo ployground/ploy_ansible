@@ -4,6 +4,9 @@ Changelog
 2.0.0b7 - Unreleased
 --------------------
 
+* Fix encoding issue with execnet connection on Python 3.x.
+  [fschulze]
+
 * Fix hanging when using keyring in newer macOS with ansible 2.x.
   [fschulze]
 

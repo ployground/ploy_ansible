@@ -110,13 +110,13 @@ class Connection(ConnectionBase):
         display.vvv("execnet put_file %r %r" % (in_path, out_path))
         if not os.path.exists(in_path):
             raise errors.AnsibleFileNotFound("file or module does not exist: %s" % in_path)
-        with open(in_path) as f:
+        with open(in_path, "rb") as f:
             self.rpc.put_file(f.read(), out_path)
 
     def fetch_file(self, in_path, out_path):
         display.vvv("execnet fetch_file %r %r" % (in_path, out_path))
         data = self.rpc.fetch_file(in_path)
-        with os.path.open(out_path, 'w') as f:
+        with os.path.open(out_path, 'wb') as f:
             f.write(data)
 
     def close(self):
