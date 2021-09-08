@@ -41,7 +41,7 @@ class Host(BaseHost):
         instance = self.ctrl.instances[self.name]
         results = dict(
             self._ploy_vars,
-            # ansible_connection='execnet_connection',
+            ansible_connection='execnet_connection',
             ansible_ssh_port=int(instance.get_port()),
             ansible_ssh_user=instance.config.get('user', 'root'),
             _ploy_instance_uid=instance.uid)
