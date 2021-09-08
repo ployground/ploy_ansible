@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0.0b8 - Unreleased
+2.0.0b8 - 2021-09-08
 --------------------
 
 * Never store python objects in inventory data to fix issues with
