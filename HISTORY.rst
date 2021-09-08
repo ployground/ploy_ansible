@@ -1,6 +1,14 @@
 Changelog
 =========
 
+2.0.0b8 - Unreleased
+--------------------
+
+* Never store python objects in inventory data to fix issues with
+  ansible >= 2.8.x.
+  [fschulze]
+
+
 2.0.0b7 - 2021-07-16
 --------------------
 

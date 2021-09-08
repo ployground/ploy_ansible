@@ -32,8 +32,7 @@ class Host(BaseHost):
             self._ploy_vars,
             ansible_connection='execnet_connection',
             ansible_ssh_user=instance.config.get('user', 'root'),
-            _ploy_instance=instance,
-            _ploy_instances=self.ctrl.instances)
+            _ploy_instance_uid=instance.uid)
         for k, v in instance.config.items():
             if k == 'password' and instance.config['password-fallback']:
                 results['ansible_ssh_pass'] = v
