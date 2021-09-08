@@ -14,7 +14,10 @@ except NameError:
 
 
 class HostAddress(unicode):
-    pass
+    def __deepcopy__(self, memodict):
+        result = HostAddress(self)
+        result.instance = self.instance
+        return result
 
 
 class Host(BaseHost):
