@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.0.0b9 - Unreleased
+--------------------
+
+* Restore ploy_crypted compatibility for older Ansible versions.
+  [fschulze]
+
+
 2.0.0b8 - 2021-09-08
 --------------------
 
