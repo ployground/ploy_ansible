@@ -25,10 +25,10 @@ jobs:
             continue-on-error: false
           - python-version: "3.8"
             tox-envs: "py38"
-            continue-on-error: true
+            continue-on-error: false
           - python-version: "3.9"
             tox-envs: "py39"
-            continue-on-error: true
+            continue-on-error: false
           - python-version: "2.7"
             tox-envs: "py27-ansible19,py27-ansible24,py27-ansible25,py27-ansible26,py27-ansible27,py27-ansible28,py27-ansible29,py27-ansible210"
             continue-on-error: false

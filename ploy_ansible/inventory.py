@@ -62,7 +62,7 @@ class Host(BaseHost):
 
 
 class InventoryManager(BaseInventoryManager):
-    def __init__(self, loader=None, sources=None):
+    def __init__(self, loader=None, sources=None, cache=False):
         self._inventory = InventoryData()
         self._restriction = None
         self._subset = None
