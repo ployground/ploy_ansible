@@ -3,6 +3,6 @@
 /.tox/
 /dev_venv/
 /dist/
-/htmlcov/
+/htmlcov*/
 /setuptools_git-*.egg
 

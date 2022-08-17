@@ -175,3 +175,16 @@ On the Python side, each ploy instance gains the following methods:
 ``get_vault_lib``
   Returns a readily usable Ansible VaultLib class.
   Use the ``encrypt`` and ``decrypt`` methods do encrypt/decrypt strings.
+
+
+Known issues
+============
+
+On macOS when using a key stored in keyring, Ansible might hang with a message similar to the following:
+```
+objc[81450]: +[__NSCFBoolean initialize] may have been in progress in another thread when fork() was called.
+objc[81450]: +[__NSCFBoolean initialize] may have been in progress in another thread when fork() was called. We cannot safely call it or ignore it in the fork() child process. Crashing instead. Set a breakpoint on objc_initializeAfterForkError to debug.
+```
+This is caused by trying to access the secret from the keyring in a forked process.
+
+To work around this you may have to add an encrypted host_vars yml for the affected host (or just one for the "all" group_vars) to trigger the key load early in Ansible.

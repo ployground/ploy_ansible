@@ -1,6 +1,95 @@
 Changelog
 =========
 
+2.0.0b9 - Unreleased
+--------------------
+
+* Dropped support for Python 3.6.
+  [fschulze]
+
+* Added support for Python 3.10 using ansible-core.
+  [fschulze]
+
+* Restore ploy_crypted compatibility for older Ansible versions.
+  [fschulze]
+
+
+2.0.0b8 - 2021-09-08
+--------------------
+
+* Never store python objects in inventory data to fix issues with
+  ansible >= 2.8.x.
+  [fschulze]
+
+
+2.0.0b7 - 2021-07-16
+--------------------
+
+* Fix encoding issue with execnet connection on Python 3.x.
+  [fschulze]
+
+* Fix hanging when using keyring in newer macOS with ansible 2.x.
+  [fschulze]
+
+
+2.0.0b6 - 2020-05-13
+--------------------
+
+* Support switch from vault ``cat`` to ``view`` command for ansible 2.x.
+  [fschulze]
+
+
+2.0.0b5 - 2019-06-09
+--------------------
+
+* This release works up to and including ansible 2.7.x.
+  [fschulze]
+
+* Restored support for ansible 1.9.x.
+  [fschulze]
+
+* Support Python >= 3.5 with ansible >= 2.4.x.
+  [fschulze]
+
+* Make host lookup in InventoryManager lazy to prevent errors when unrelated
+  hosts are not accessible.
+  [fschulze]
+
+
+2.0.0b4 - 2018-02-11
+--------------------
+
+* Fix become/sudo support for ``execnet_connection``.
+  [fschulze]
+
+* Fix playbook discovery.
+  [fschulze]
+
+
+2.0.0b3 - 2018-02-10
+--------------------
+
+* Fix ``ploy_crypted`` lookup plugin.
+  [fschulze]
+
+
+2.0.0b2 - 2018-02-07
+--------------------
+
+* Readded ``execnet_connection`` as plugin.
+  [fschulze]
+
+
+2.0.0b1 - 2018-02-07
+--------------------
+
+* Support ansible >= 2.4.0 and drop support for previous versions.
+  [fschulze]
+
+* Support for ploy 2.0.0.
+  [fschulze]
+
+
 1.4.1 - 2018-02-11
 ------------------
 

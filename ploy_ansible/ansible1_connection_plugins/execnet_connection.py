@@ -1,10 +1,13 @@
+from __future__ import print_function
 from ansible import errors
 from ansible import utils
 from ansible.callbacks import vvv
-from ploy_ansible import remote
 import execnet
 import os
+import paramiko
 import pipes
+import ploy_ansible
+import ploy_ansible.remote
 import sys
 
 
@@ -23,7 +26,7 @@ class RPCWrapper(object):
                 pass
             else:
                 if result[0] == 'remote-core-error':
-                    print >>sys.stderr, result[1]
+                    print(result[1], file=sys.stderr)
                     raise RuntimeError('Remote exception encountered.')
             return result
         return call
@@ -35,9 +38,6 @@ class SSHArgs:
 
     def split(self):
         return self.args
-
-
-RPC_CACHE = {}
 
 
 class Connection(object):
@@ -52,7 +52,7 @@ class Connection(object):
         self._cache_key = (host, user)
 
     def connect(self):
-        if self._cache_key not in RPC_CACHE:
+        if self._cache_key not in ploy_ansible.RPC_CACHE:
             ctrl = self.runner._ploy_ctrl
             instance = ctrl.instances[self.host]
             if hasattr(instance, '_status'):
@@ -60,22 +60,22 @@ class Connection(object):
                     raise errors.AnsibleError("Instance '%s' unavailable." % instance.config_id)
             try:
                 ssh_info = instance.init_ssh_key(user=self.user)
-            except instance.paramiko.SSHException as e:
+            except paramiko.SSHException as e:
                 raise errors.AnsibleError("Couldn't validate fingerprint for '%s': %s" % (instance.config_id, e))
             spec = execnet.XSpec('ssh')
             ssh_args = instance.ssh_args_from_info(ssh_info)
             if utils.VERBOSITY > 3:
                 ssh_args += ["-vvv"]
             spec.ssh = SSHArgs(ssh_args)
-            vars = self.runner.inventory.get_variables(self.host)
+            vars = instance.get_ansible_variables()
             spec.python = vars.get('ansible_python_interpreter', 'python')
             gw = execnet.makegateway(spec)
             try:
-                channel = gw.remote_exec(remote)
+                channel = gw.remote_exec(ploy_ansible.remote)
             except IOError as e:
                 raise errors.AnsibleError("Couldn't open execnet channel for '%s': %s" % (instance.config_id, e))
-            RPC_CACHE[self._cache_key] = RPCWrapper(channel)
-        self.rpc = RPC_CACHE[self._cache_key]
+            ploy_ansible.RPC_CACHE[self._cache_key] = RPCWrapper(channel)
+        self.rpc = ploy_ansible.RPC_CACHE[self._cache_key]
         return self
 
     def exec_command(self, cmd, tmp_path, become_user, **kwargs):
