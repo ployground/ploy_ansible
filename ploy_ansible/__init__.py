@@ -60,7 +60,7 @@ def inject_ansible_paths(ctrl=None):
     try:
         import ansible.constants as C
     except ImportError:
-        log.error("Can't import ansible, check whether it's installed correctly.")
+        log.exception("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
     if ansible_version >= pkg_resources.parse_version("2.8dev"):
         log.warn(
