@@ -4,6 +4,12 @@ Changelog
 2.0.0b9 - Unreleased
 --------------------
 
+* Dropped support for Python 3.6.
+  [fschulze]
+
+* Added support for Python 3.10 using ansible-core.
+  [fschulze]
+
 * Restore ploy_crypted compatibility for older Ansible versions.
   [fschulze]
 

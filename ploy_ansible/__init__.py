@@ -20,7 +20,10 @@ except NameError:
     string_types = str
 
 
-ansible_dist = pkg_resources.get_distribution("ansible")
+if sys.version_info < (3, 10):
+    ansible_dist = pkg_resources.get_distribution("ansible")
+else:
+    ansible_dist = pkg_resources.get_distribution("ansible-core")
 ansible_version = ansible_dist.parsed_version
 ANSIBLE1 = ansible_version < pkg_resources.parse_version("2dev")
 ANSIBLE2 = not ANSIBLE1
