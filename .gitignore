@@ -1,6 +1,7 @@
 /.cache/
 /.coverage
 /.tox/
+/build/
 /dev_venv/
 /dist/
 /htmlcov*/
