@@ -77,7 +77,7 @@ def inject_ansible_paths(ctrl=None):
     except ImportError:
         log.exception("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    if ansible_version >= parse_version("2.8dev"):
+    if ansible_version >= parse_version("2.12dev"):
         log.warn(
             "You are using an untested version %s of %s. "
             "The latest tested version is 2.7.X. "
