@@ -23,6 +23,8 @@ classifiers = [
 
 install_requires = [
     'execnet',
+    'importlib.metadata;python_version<"3.8"',
+    'packaging',
     'ploy >= 2.0.0',
     'ansible>=1.9,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*;python_version<"3.0"',
     'ansible>=2.4;python_version>="3.0" and python_version<"3.10"',

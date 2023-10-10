@@ -1,14 +1,22 @@
 from __future__ import print_function, unicode_literals
 from operator import attrgetter
+from packaging.version import parse as parse_version
 import argparse
 import getpass
 import logging
-import pkg_resources
 import os
 import subprocess
 import sys
 from binascii import b2a_base64
 from ploy.common import sorted_choices, yesno
+try:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import entry_points
+    from importlib.metadata import distribution
+except ImportError:
+    from importlib_metadata import PackageNotFoundError
+    from importlib_metadata import entry_points
+    from importlib_metadata import distribution
 
 
 notset = object()
@@ -20,15 +28,16 @@ except NameError:
     string_types = str
 
 
-if sys.version_info < (3, 10):
-    ansible_dist = pkg_resources.get_distribution("ansible")
-else:
-    ansible_dist = pkg_resources.get_distribution("ansible-core")
-ansible_version = ansible_dist.parsed_version
-ANSIBLE1 = ansible_version < pkg_resources.parse_version("2dev")
+try:
+    ansible_dist = distribution("ansible-core")
+except PackageNotFoundError:
+    ansible_dist = distribution("ansible")
+ansible_package_name = ansible_dist.metadata['name']
+ansible_version = parse_version(ansible_dist.version)
+ANSIBLE1 = ansible_version < parse_version("2dev")
 ANSIBLE2 = not ANSIBLE1
-ANSIBLE_HAS_CONTEXT = ansible_version >= pkg_resources.parse_version("2.8dev")
-ANSIBLE_HAS_SENTINEL = ansible_version >= pkg_resources.parse_version("2.8dev")
+ANSIBLE_HAS_CONTEXT = ansible_version >= parse_version("2.8dev")
+ANSIBLE_HAS_SENTINEL = ansible_version >= parse_version("2.8dev")
 log = logging.getLogger('ploy_ansible')
 RPC_CACHE = {}
 
@@ -65,11 +74,12 @@ def inject_ansible_paths(ctrl=None):
     except ImportError:
         log.exception("Can't import ansible, check whether it's installed correctly.")
         sys.exit(1)
-    if ansible_version >= pkg_resources.parse_version("2.8dev"):
+    if ansible_version >= parse_version("2.8dev"):
         log.warn(
-            "You are using an untested version %s of ansible. "
+            "You are using an untested version %s of %s. "
             "The latest tested version is 2.7.X. "
-            "Any errors may be caused by that newer version." % ansible_version)
+            "Any errors may be caused by that newer version." % (
+                ansible_version, ansible_package_name))
     if ANSIBLE2:
         # we need to set ``display`` up globally and on the ``__main__`` module
         # for verbosity settings etc to work properly
@@ -86,7 +96,7 @@ def inject_ansible_paths(ctrl=None):
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
     extra_plugins = {}
-    for entrypoint in pkg_resources.iter_entry_points(group='ansible_paths'):
+    for entrypoint in entry_points()['ansible_paths']:
         pathinfo = entrypoint.load()
         extra_roles.extend(pathinfo.get('roles', []))
         extra_library.extend(pathinfo.get('library', []))
@@ -811,7 +821,7 @@ def get_ansible_variablemanager(self, **kwargs):
         variable_manager = kwargs['variable_manager']
     else:
         variable_manager = VariableManager(loader=loader, inventory=inventory)
-        if ansible_version < pkg_resources.parse_version("2.8dev"):
+        if ansible_version < parse_version("2.8dev"):
             variable_manager.extra_vars = load_extra_vars(loader=loader, options=options)
         if safe_basedir:
             variable_manager.safe_basedir = True
