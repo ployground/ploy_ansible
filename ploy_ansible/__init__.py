@@ -672,21 +672,35 @@ def _get_playbook(self, *args, **kwargs):
         log.error("AnsibleError: %s" % e)
         sys.exit(1)
     for play in plays:
-        if play._attributes.get('remote_user') is Sentinel:
-            play._attributes['remote_user'] = self.config.get('user', 'root')
-        if self.config.get('sudo'):
-            play._attributes['sudo'] = self.config.get('sudo')
+        hosts = {}
+        remote_user = self.config.get('user', 'root')
+        sudo = self.config.get('sudo')
+        if hasattr(play, '_fattributes'):
+            if getattr(play, '_remote_user', Sentinel) is Sentinel:
+                play._remote_user = remote_user
+            if getattr(play, '_hosts', Sentinel) is Sentinel:
+                play._hosts = hosts
+            if sudo:
+                play._sudo = sudo
+        else:
+            if play._attributes.get('hosts') is Sentinel:
+                play._attributes['hosts'] = hosts
+            if play._attributes.get('remote_user') is Sentinel:
+                play._attributes['remote_user'] = remote_user
+            if sudo:
+                play._attributes['sudo'] = sudo
         if not skip_host_check:
-            hosts = play._attributes.get('hosts', Sentinel)
+            hosts = play.hosts
             if isinstance(hosts, string_types):
                 hosts = hosts.split(':')
-            if hosts is Sentinel:
-                hosts = {}
             if self.uid not in hosts:
                 log.warning("The host '%s' is not in the list of hosts (%s) of '%s'.", self.uid, ','.join(hosts), playbook)
                 if not yesno("Do you really want to apply '%s' to the host '%s'?" % (playbook, self.uid)):
                     sys.exit(1)
-        play._attributes['hosts'] = [self.uid]
+        if hasattr(play, '_fattributes'):
+            play._hosts = [self.uid]
+        else:
+            play._attributes['hosts'] = [self.uid]
     return pb
 
 
