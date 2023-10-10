@@ -1,6 +1,13 @@
 Changelog
 =========
 
+2.1.0 - Unreleased
+------------------
+
+* Made ``execnet_connection`` multiprocessing aware, which avoids repeated SSH connections.
+  [fschulze]
+
+
 2.0.0 - 2022-08-17
 ------------------
 

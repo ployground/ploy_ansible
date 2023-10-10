@@ -62,6 +62,9 @@ def inject_ctrl(ctrl):
     from ploy_ansible.inventory import InventoryManager
     PlayContext._ploy_ctrl = ctrl
     InventoryManager._ploy_ctrl = ctrl
+    if not hasattr(ctrl, '_mp_helper'):
+        from ploy_ansible.mp import MPHelper
+        ctrl._mp_helper = MPHelper(ctrl)
 
 
 def inject_ansible_paths(ctrl=None):

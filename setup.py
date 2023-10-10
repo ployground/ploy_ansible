@@ -7,7 +7,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 HISTORY = open(os.path.join(here, 'HISTORY.rst')).read()
 
 
-version = "2.0.0"
+version = "2.1.0.dev0"
 
 
 classifiers = [
