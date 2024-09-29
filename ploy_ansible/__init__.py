@@ -99,7 +99,11 @@ def inject_ansible_paths(ctrl=None):
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
     extra_plugins = {}
-    for entrypoint in entry_points(group='ansible_paths'):
+    try:
+        eps = entry_points(group='ansible_paths')
+    except TypeError:
+        eps = entry_points()['ansible_paths']
+    for entrypoint in eps:
         pathinfo = entrypoint.load()
         extra_roles.extend(pathinfo.get('roles', []))
         extra_library.extend(pathinfo.get('library', []))
