@@ -10,13 +10,13 @@ import sys
 from binascii import b2a_base64
 from ploy.common import sorted_choices, yesno
 try:
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import entry_points
-    from importlib.metadata import distribution
-except ImportError:
     from importlib_metadata import PackageNotFoundError
     from importlib_metadata import entry_points
     from importlib_metadata import distribution
+except ImportError:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import entry_points
+    from importlib.metadata import distribution
 
 
 notset = object()
@@ -99,7 +99,7 @@ def inject_ansible_paths(ctrl=None):
     extra_library = []
     plugin_path_names = set(x for x in dir(C) if x.endswith('_PLUGIN_PATH'))
     extra_plugins = {}
-    for entrypoint in entry_points()['ansible_paths']:
+    for entrypoint in entry_points(group='ansible_paths'):
         pathinfo = entrypoint.load()
         extra_roles.extend(pathinfo.get('roles', []))
         extra_library.extend(pathinfo.get('library', []))
