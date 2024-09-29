@@ -80,7 +80,7 @@ def inject_ansible_paths(ctrl=None):
     if ansible_version >= parse_version("2.12dev"):
         log.warn(
             "You are using an untested version %s of %s. "
-            "The latest tested version is 2.7.X. "
+            "The latest tested version is 2.11.X. "
             "Any errors may be caused by that newer version." % (
                 ansible_version, ansible_package_name))
     if ANSIBLE2:
