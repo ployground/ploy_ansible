@@ -30,6 +30,12 @@ jobs:
           - python-version: "3.10"
             tox-envs: "py310"
             continue-on-error: false
+          - python-version: "3.11"
+            tox-envs: "py311"
+            continue-on-error: false
+          - python-version: "3.12"
+            tox-envs: "py312"
+            continue-on-error: false
           - python-version: "3.7"
             tox-envs: "py37-ansible25,py37-ansible26,py37-ansible27,py37-ansible28,py37-ansible29,py37-ansible210"
             continue-on-error: false
