@@ -18,6 +18,8 @@ classifiers = [
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Topic :: System :: Installation/Setup',
     'Topic :: System :: Systems Administration']
 
@@ -28,7 +30,9 @@ install_requires = [
     'ploy >= 2.0.0',
     'ansible>=1.9,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*;python_version<"3.0"',
     'ansible>=2.4;python_version>="3.0" and python_version<"3.10"',
-    'ansible-core;python_version>="3.10"']
+    'ansible-core;python_version>="3.10"',
+    'ansible-core>=2.13;python_version>="3.12"',
+]
 
 
 setuptools.setup(

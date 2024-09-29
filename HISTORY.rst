@@ -4,6 +4,9 @@ Changelog
 2.1.0 - Unreleased
 ------------------
 
+* Added support for Python 3.11 and 3.12.
+  [fschulze]
+
 * Made ``execnet_connection`` multiprocessing aware, which avoids repeated SSH connections.
   [fschulze]
 
