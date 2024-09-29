@@ -40,7 +40,7 @@ jobs:
             tox-envs: "py39-ansible25,py39-ansible26,py39-ansible27,py39-ansible28,py39-ansible29,py39-ansible210"
             continue-on-error: false
           - python-version: "3.10"
-            tox-envs: "py310-ansiblecore211,py310-ansiblecore212,py310-ansiblecore213"
+            tox-envs: "py310-ansiblecore211,py310-ansiblecore212,py310-ansiblecore213,py310-ansiblecore214,py310-ansiblecore215,py310-ansiblecore216,py310-ansiblecore217"
             continue-on-error: false
 
     steps:
