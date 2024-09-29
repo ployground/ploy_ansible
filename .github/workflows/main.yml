@@ -12,6 +12,7 @@ jobs:
       PY_COLORS: 1
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - python-version: "3.7"
